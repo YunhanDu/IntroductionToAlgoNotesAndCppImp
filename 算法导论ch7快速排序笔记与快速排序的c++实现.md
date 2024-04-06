@@ -50,7 +50,7 @@ int Partition(vector<int>& arr, int left, int right) {
     int i = left - 1; // highest index into the low side
     // process each element other than the pivot
     for (int j = left; j < right; ++j) { 
-        if (arr[j] <= x) { // does thw element belong on the low side
+        if (arr[j] <= x) { // does jth element belong on the low side
             ++i;
             // exchange A[i] with A[j]
             int temp = arr[j];
@@ -71,10 +71,9 @@ Partition 总会选择一个 $x = arr[right]$ 作为主元(pivot element)，并�
 **简单验证Partition算法的正确性**：
 
 对于Partition算法中的for循环部分，我们将以下这些性质作为循环不变量：对于for循环的每次迭代开始前，对于任何数组下标k, 以下性质都成立：
-
-			1. 如果 $left\leq k \leq i$ , 则 $A[k] \leq x$ ；
-			1. 如果 $i+1\leq k \leq j-1$ , 则 $A[k] \gt x$ ;
-			1. 如果 $ k = right$ , 则 $A[k] = x$ ;
+1. 如果 $left\leq k \leq i$ , 则 $A[k] \leq x$ ；
+2. 如果 $i+1\leq k \leq j-1$ , 则 $A[k] \gt x$ ;
+3. 如果 $ k = right$ , 则 $A[k] = x$ ;
 
 该循环不变量在第一次迭代前是成立的，在每一轮迭代后仍然都成立，在循环结束时，该循环不变量还可以为证明算法正确性提供有用的信息。
 
@@ -215,7 +214,7 @@ private:
         int i = left - 1; // highest index into the low side
         // process each element other than the pivot
         for (int j = left; j < right; ++j) { 
-            if (arr[j] <= x) { // does thw element belong on the low side
+            if (arr[j] <= x) { // does jth element belong on the low side
                 ++i;
                 // exchange A[i] with A[j]
                 int temp = arr[j];
