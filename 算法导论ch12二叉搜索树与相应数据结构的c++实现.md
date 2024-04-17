@@ -1,6 +1,6 @@
 算法导论ch12二叉搜索树与相应数据结构的c++实现
 
-BinarySearchTree
+BinarySearchTree.h
 
 ```c++
 #ifndef BinarySearchTree_h
@@ -20,9 +20,16 @@ protected:
     int size_; TreeNode<T>* root_; // size_ means # of nodes
     virtual int UpdateHeight(TreeNode<T>* node);
     void UpdateHeightAbove(TreeNode<T>* node);
+    void Transplant(TreeNode<T>* &toBeSubstituted, TreeNode<T>* &vertex);
+    void Display(TreeNode<T>* cur, int depth = 0);
 public:
     BST() : size_(0), root_(nullptr) {}    
-    ~BST() { if (size_ > 0) std::cout << Remove(root_); }
+    ~BST() { 
+        if (size_ > 0) {
+            std::cout << "Hi, my job is done. " << "\n";
+            std::cout << Remove(root_);
+        }
+    }
     int size() const { return size_; }
     int height() const { return stature(root_); }
     bool empty() const { return root_ == nullptr; }
@@ -40,15 +47,14 @@ public:
     TreeNode<T>* TreeSuccessor(TreeNode<T>* cur) const;
     TreeNode<T>* TreePredecessor(TreeNode<T>* cur) const;
     // search
-    TreeNode<T>*& Search(T const& keyVal) const;
-    // TreeNode<T>*& SearchRecursive(TreeNode<T>* cur, T const& keyVal) const;
-    TreeNode<T>*& SearchIterative(TreeNode<T>* cur, T const& keyVal) const;
+    TreeNode<T>*& Search(T const& keyVal);
+    TreeNode<T>*& SearchRecursive(TreeNode<T>*& cur, T const& keyVal);
+    TreeNode<T>*& SearchIterative(TreeNode<T>*& cur, T const& keyVal);
     // insertion
-    // TreeNode<T>* insertAsRoot(T const& rootVal) { size_ = 1; root_ = new TreeNode<T>(rootVal); return root_; }
     TreeNode<T>* TreeInsert(T const& val);
     // deletion
-    void Transplant()
-
+    bool TreeDeletion(T const& val);
+    void TreeDeletion(TreeNode<T>* &cur);
     int Remove(TreeNode<T>* x);
     // Traversal
     template <typename VST>
@@ -59,6 +65,7 @@ public:
     void travelIn(VST& visit) { if (root_) root_->travelIn(visit); }
     template <typename VST>
     void travelPost(VST& visit) { if (root_) root_->travelPost(visit); }
+    void Display();
 }; 
 
 template <typename T> int BST<T>::UpdateHeight(TreeNode<T>* node) {
@@ -71,6 +78,7 @@ template <typename T> void BST<T>::UpdateHeightAbove(TreeNode<T>* node) {
         node = node->parent_;
     }
 }
+
 template <typename T> TreeNode<T>* BST<T>::TreeMinimum(TreeNode<T>* cur) const {
     while (cur->lc_ != nullptr) {
         cur = cur->lc_;
@@ -101,16 +109,16 @@ template <typename T> TreeNode<T>* BST<T>::TreePredecessor(TreeNode<T>* cur) con
     }
     return y;
 }
-template <typename T> TreeNode<T>*& BST<T>::Search(T const& keyVal) const {
+template <typename T> TreeNode<T>*& BST<T>::Search(T const& keyVal) {
     return SearchIterative(root_, keyVal);    
 }
-// template <typename T> TreeNode<T>* BST<T>::SearchRecursive(TreeNode<T>* cur, T const& keyVal) const {
-//     if (cur == nullptr || keyVal == cur->data_) return cur;
-//     if (keyVal < cur->data_)
-//         return Search(cur->lc_, keyVal);
-//     return Search(cur->rc_, keyVal);      
-// }
-template <typename T> TreeNode<T>*& BST<T>::SearchIterative(TreeNode<T>* cur, T const& keyVal) const {
+template <typename T> TreeNode<T>*& BST<T>::SearchRecursive(TreeNode<T>*& cur, T const& keyVal) {
+    if (cur == nullptr || keyVal == cur->data_) return cur;
+    if (keyVal < cur->data_)
+        return SearchRecursive(cur->lc_, keyVal);
+    return SearchRecursive(cur->rc_, keyVal);      
+}
+template <typename T> TreeNode<T>*& BST<T>::SearchIterative(TreeNode<T>*& cur, T const& keyVal) {
     while (cur != nullptr && keyVal != cur->data_) {
         if (keyVal < cur->data_) cur = cur->lc_;
         else cur = cur->rc_;
@@ -121,14 +129,14 @@ template <typename T> TreeNode<T>*& BST<T>::SearchIterative(TreeNode<T>* cur, T 
 template <typename T> TreeNode<T>* BST<T>::TreeInsert(T const& val) {
     TreeNode<T>* targetPosiParent = nullptr;
     TreeNode<T>* curPosi = root_;
-    while (curPosi) {
+    while (curPosi != nullptr) {
         targetPosiParent = curPosi;
         if (val < curPosi->data_) curPosi = curPosi->lc_;
         else curPosi = curPosi->rc_;
     }
     TreeNode<T>* newNode = new TreeNode<T>(val, targetPosiParent);
     // if tree is empty
-    ++size;
+    ++size_;
     UpdateHeightAbove(newNode);
     if (targetPosiParent == nullptr) {
         root_ = newNode;   
@@ -139,10 +147,49 @@ template <typename T> TreeNode<T>* BST<T>::TreeInsert(T const& val) {
     } else targetPosiParent->rc_ = newNode;
     return newNode;
 }
+template <typename T> bool BST<T>::TreeDeletion(T const& val) {
+    TreeNode<T>* &cur = Search(val);
+    if (cur == nullptr) return false;
+    TreeDeletion(cur); 
+    return true;  
+}
+template <typename T> void BST<T>::Transplant(TreeNode<T>*& toBeSubstituted, TreeNode<T>*& vertex) {
+    if (toBeSubstituted->parent_ == nullptr) root_ = vertex;
+    else if (toBeSubstituted == toBeSubstituted->parent_->lc_) {
+        toBeSubstituted->parent_->lc_ = vertex;
+    } else toBeSubstituted->parent_->rc_ = vertex;
+    if (vertex != nullptr) vertex->parent_ = toBeSubstituted->parent_;
+}
+
+template <typename T> void BST<T>::TreeDeletion(TreeNode<T>*& cur) {
+    TreeNode<T>* target = nullptr; // find the lowest node whose height may need to updated
+    if (cur->lc_ == nullptr) {
+        Transplant(cur, cur->rc_); // replace cur by its right child
+        target = cur->rc_->parent_;
+    } else if (cur->rc_ == nullptr) {
+        Transplant(cur, cur->lc_); // replace cur by its left child
+        target = cur->lc_->parent_;
+    } else {
+        TreeNode<T>* y = TreeMinimum(cur->rc_);
+        if (y->parent_ != cur) { // is y farther down the tree?
+            Transplant(y, y->rc_); // replace y by its right child
+            y->rc_ = cur->rc_; // z's right child becomes
+            cur->rc_->parent_ = y; // y's right child
+        }
+        Transplant(cur, y); // replace cur by its successor y
+        y->lc_ = cur->lc_; // and give z's left child to y
+        cur->lc_->parent_ = y; // which had no left child
+        target = (y->rc_ == nullptr) ? y : y-> rc_;     
+    }
+    UpdateHeightAbove(target);
+    --size_;
+    delete cur;
+    cur = nullptr;
+}
 
 template <typename T> int BST<T>::Remove(TreeNode<T>* x) {
     // cut the pointer from parent node
-    TreeNode<T>* &pointerOfParent = (x->parent == nullptr) ? root_ : ((x == x->parent_->lc_) ? x->parent_->lc_ : x->parent_->rc_);
+    TreeNode<T>* &pointerOfParent = (x->parent_ == nullptr) ? root_ : ((x == x->parent_->lc_) ? x->parent_->lc_ : x->parent_->rc_);
     pointerOfParent = nullptr;
     // Remove all the nodes of this subtree
     // use Preorder way to remove all the nodes.
@@ -156,6 +203,28 @@ template <typename T> int BST<T>::Remove(TreeNode<T>* x) {
     x->travelPre(del);
     size_ -= toBeDel;
     return toBeDel;
+}
+template <typename T>
+void BST<T>::Display() {
+    std::cout << "\n";
+    if (root_ != nullptr) Display(root_);
+    else std::cout << "Empty";
+    std::cout << "\n";
+}
+template <typename T>
+void BST<T>::Display(TreeNode<T>* cur, int depth) {
+    if (cur->lc_) Display(cur->lc_, depth + 1);
+
+    for (int i=0; i < depth; i++)
+        printf("     ");
+
+    if (cur->parent_ != nullptr) {
+        if ( cur == cur->parent_->lc_) {
+            printf("┌───");
+        } else printf("└───");
+    }
+    std::cout << "[" << cur->data_ << "] - (" << cur->height_ << ")" << "\n";
+    if (cur->rc_) Display(cur->rc_, depth + 1);    
 }
 
 #endif /*BinarySearchTree_h*/
@@ -308,17 +377,29 @@ int main()
     std::vector<int> record;
     auto visit = [&](TreeNode<int>* node) {
         record.emplace_back(node->data_);
+        std::cout << node->data_ << " ";
     };
     root->travelLevel(visit);
-    for (auto& ele : record) {
-        std::cout << ele << " ";
-    }
+    std::cout << "\n";
     record.clear();
     // Test BST
-
-
-    
+    BST<int> bst;
+    bst.TreeInsert(8);
+    bst.TreeInsert(11);
+    bst.TreeInsert(5);
+    bst.TreeInsert(3);
+    bst.TreeInsert(7);
+    bst.TreeInsert(12);
+    bst.TreeInsert(10);
+    bst.TreeInsert(9);
+    bst.TreeInsert(16);
+    bst.travelIn(visit);
     std::cout << "\n";
+    record.clear();
+    bst.Display();
+    bst.TreeDeletion(11);
+    std::cout << bst.size() << "\n";
+    bst.Display();
 }
 ```
 
