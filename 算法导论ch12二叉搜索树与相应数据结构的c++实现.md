@@ -11,6 +11,7 @@ BinarySearchTree.h
 #include <vector>
 #include <queue>
 #include <stack>
+#include <algorithm>
 #include <cmath>
 using std::vector;
 using std::queue;
@@ -20,8 +21,8 @@ protected:
     int size_; TreeNode<T>* root_; // size_ means # of nodes
     virtual int UpdateHeight(TreeNode<T>* node);
     void UpdateHeightAbove(TreeNode<T>* node);
-    void Transplant(TreeNode<T>* &toBeSubstituted, TreeNode<T>* &vertex);
     void Display(TreeNode<T>* cur, int depth = 0);
+    void Transplant(TreeNode<T>* toBeSubstituted, TreeNode<T>* vertex);
 public:
     BST() : size_(0), root_(nullptr) {}    
     ~BST() { 
@@ -49,12 +50,13 @@ public:
     // search
     TreeNode<T>*& Search(T const& keyVal);
     TreeNode<T>*& SearchRecursive(TreeNode<T>*& cur, T const& keyVal);
-    TreeNode<T>*& SearchIterative(TreeNode<T>*& cur, T const& keyVal);
+    TreeNode<T>* SearchIterative(TreeNode<T>* cur, T const& keyVal);
     // insertion
     TreeNode<T>* TreeInsert(T const& val);
     // deletion
     bool TreeDeletion(T const& val);
-    void TreeDeletion(TreeNode<T>* &cur);
+    void TreeDeletion(TreeNode<T>*& cur);
+    void TreeDeletion2(TreeNode<T>* cur);
     int Remove(TreeNode<T>* x);
     // Traversal
     template <typename VST>
@@ -110,7 +112,7 @@ template <typename T> TreeNode<T>* BST<T>::TreePredecessor(TreeNode<T>* cur) con
     return y;
 }
 template <typename T> TreeNode<T>*& BST<T>::Search(T const& keyVal) {
-    return SearchIterative(root_, keyVal);    
+    return SearchRecursive(root_, keyVal);    
 }
 template <typename T> TreeNode<T>*& BST<T>::SearchRecursive(TreeNode<T>*& cur, T const& keyVal) {
     if (cur == nullptr || keyVal == cur->data_) return cur;
@@ -118,7 +120,7 @@ template <typename T> TreeNode<T>*& BST<T>::SearchRecursive(TreeNode<T>*& cur, T
         return SearchRecursive(cur->lc_, keyVal);
     return SearchRecursive(cur->rc_, keyVal);      
 }
-template <typename T> TreeNode<T>*& BST<T>::SearchIterative(TreeNode<T>*& cur, T const& keyVal) {
+template <typename T> TreeNode<T>* BST<T>::SearchIterative(TreeNode<T>* cur, T const& keyVal) {
     while (cur != nullptr && keyVal != cur->data_) {
         if (keyVal < cur->data_) cur = cur->lc_;
         else cur = cur->rc_;
@@ -137,7 +139,7 @@ template <typename T> TreeNode<T>* BST<T>::TreeInsert(T const& val) {
     TreeNode<T>* newNode = new TreeNode<T>(val, targetPosiParent);
     // if tree is empty
     ++size_;
-    UpdateHeightAbove(newNode);
+    
     if (targetPosiParent == nullptr) {
         root_ = newNode;   
         return newNode;
@@ -145,46 +147,69 @@ template <typename T> TreeNode<T>* BST<T>::TreeInsert(T const& val) {
     if (val < targetPosiParent->data_) {
        targetPosiParent->lc_ = newNode; 
     } else targetPosiParent->rc_ = newNode;
+    UpdateHeightAbove(newNode);
     return newNode;
 }
 template <typename T> bool BST<T>::TreeDeletion(T const& val) {
-    TreeNode<T>* &cur = Search(val);
+    TreeNode<T>*& cur = Search(val);
     if (cur == nullptr) return false;
-    TreeDeletion(cur); 
+    TreeDeletion2(cur); 
     return true;  
 }
-template <typename T> void BST<T>::Transplant(TreeNode<T>*& toBeSubstituted, TreeNode<T>*& vertex) {
+// Intro To Algo's Method
+template <typename T> void BST<T>::Transplant(TreeNode<T>* toBeSubstituted, TreeNode<T>* vertex) {
     if (toBeSubstituted->parent_ == nullptr) root_ = vertex;
     else if (toBeSubstituted == toBeSubstituted->parent_->lc_) {
         toBeSubstituted->parent_->lc_ = vertex;
     } else toBeSubstituted->parent_->rc_ = vertex;
     if (vertex != nullptr) vertex->parent_ = toBeSubstituted->parent_;
 }
-
-template <typename T> void BST<T>::TreeDeletion(TreeNode<T>*& cur) {
-    TreeNode<T>* target = nullptr; // find the lowest node whose height may need to updated
+template <typename T> void BST<T>::TreeDeletion2(TreeNode<T>* cur) {
+    TreeNode<T>* target = cur->parent_; // find the lowest node whose height may need to updated
     if (cur->lc_ == nullptr) {
         Transplant(cur, cur->rc_); // replace cur by its right child
-        target = cur->rc_->parent_;
+        
     } else if (cur->rc_ == nullptr) {
-        Transplant(cur, cur->lc_); // replace cur by its left child
-        target = cur->lc_->parent_;
+        Transplant(cur, cur->lc_); // replace cur by its left child    
     } else {
         TreeNode<T>* y = TreeMinimum(cur->rc_);
         if (y->parent_ != cur) { // is y farther down the tree?
             Transplant(y, y->rc_); // replace y by its right child
             y->rc_ = cur->rc_; // z's right child becomes
-            cur->rc_->parent_ = y; // y's right child
+            y->rc_->parent_ = y; // y's right child
         }
         Transplant(cur, y); // replace cur by its successor y
         y->lc_ = cur->lc_; // and give z's left child to y
-        cur->lc_->parent_ = y; // which had no left child
+        y->lc_->parent_ = y; // which had no left child
         target = (y->rc_ == nullptr) ? y : y-> rc_;     
     }
     UpdateHeightAbove(target);
     --size_;
-    delete cur;
-    cur = nullptr;
+}
+// 邓俊辉的取巧办法，我并不喜欢,有点取巧走后门的感觉
+template <typename T> void BST<T>::TreeDeletion(TreeNode<T>*& cur) {
+    TreeNode<T>* toBeDeleted = cur; // 
+    TreeNode<T>* succ = nullptr;
+    if (cur->lc_ == nullptr) {
+        cur = cur->rc_;
+        succ = cur;
+    } else if (cur->rc_ == nullptr) {
+        cur = cur->lc_;
+        succ = cur;
+    } else {
+        toBeDeleted = TreeMinimum(toBeDeleted->rc_);
+        std::swap(cur->data_, toBeDeleted->data_);
+        TreeNode<T>* u = toBeDeleted->parent_;
+        succ = toBeDeleted->rc_;
+        if (u == cur) u->rc_ = succ;
+        else u->rc_ = succ;
+    }
+    if (succ != nullptr) succ->parent_ = toBeDeleted->parent_;
+    UpdateHeightAbove(toBeDeleted->parent_);
+    --size_;
+    delete toBeDeleted;
+    toBeDeleted = nullptr;
+    
 }
 
 template <typename T> int BST<T>::Remove(TreeNode<T>* x) {
@@ -204,8 +229,7 @@ template <typename T> int BST<T>::Remove(TreeNode<T>* x) {
     size_ -= toBeDel;
     return toBeDel;
 }
-template <typename T>
-void BST<T>::Display() {
+template <typename T> void BST<T>::Display() {
     std::cout << "\n";
     if (root_ != nullptr) Display(root_);
     else std::cout << "Empty";
@@ -243,7 +267,7 @@ TreeNode.h
 using std::vector;
 using std::queue;
 using std::stack;
-#define stature(node) ((node) ? (node)->height : -1)
+#define stature(node) ((node) ? (node)->height_ : -1)
 template<typename T> struct TreeNode {
     T data_;
     TreeNode<T>* parent_;
@@ -261,8 +285,6 @@ template<typename T> struct TreeNode {
     template <typename VST> void travelPre(VST& visit) { TravelPreIterative(this, visit); }
     template <typename VST> void travelIn(VST& visit) { TravelInIterative(this, visit); }
     template <typename VST> void travelPost(VST& visit) { TravelPostRecursive(this, visit);}
-    bool operator< (TreeNode const& bn) { return data_ < bn.data_; }
-    bool operator== (TreeNode const& bn) {return data_ < bn.data_; }
 };
 // 1 level traversal
 template <typename T, typename VST>  
@@ -385,21 +407,30 @@ int main()
     // Test BST
     BST<int> bst;
     bst.TreeInsert(8);
-    bst.TreeInsert(11);
+    bst.TreeInsert(12);
     bst.TreeInsert(5);
     bst.TreeInsert(3);
     bst.TreeInsert(7);
-    bst.TreeInsert(12);
+    bst.TreeInsert(13);
     bst.TreeInsert(10);
+    bst.TreeInsert(11);
     bst.TreeInsert(9);
     bst.TreeInsert(16);
     bst.travelIn(visit);
     std::cout << "\n";
+    std::cout << bst.size() << "\n";
     record.clear();
     bst.Display();
-    bst.TreeDeletion(11);
+    bst.TreeDeletion(10);
     std::cout << bst.size() << "\n";
     bst.Display();
+    bst.TreeDeletion(9);
+    std::cout << bst.size() << "\n";
+    bst.Display();
+    bst.TreeDeletion(16);
+    std::cout << bst.size() << "\n";
+    bst.Display();
+    std::cout << "TreeMaximum: " << bst.TreeMaximum()->data_ << "\n";
 }
 ```
 
