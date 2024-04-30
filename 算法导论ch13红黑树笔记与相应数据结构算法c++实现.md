@@ -80,6 +80,7 @@ public:
         tNil->color_ = RB_BLACK;
         root_ = tNil;
     }
+    RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
     void LeftRotate(RBNode<T>* x);
     void RightRotate(RBNode<T>* x);
     // insertion
@@ -87,8 +88,9 @@ public:
     void RBInsertFixUp(RBNode<T>* z);
     // deletion
     void RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex);
-    bool RBDeletion(T const& val);
-    void RBDeletion(TreeNode<T>*& cur);
+    // bool RBDeletion(T const& val);
+    void RBDeletion(RBNode<T>* z);
+    void RBDeleteFixUp(RBNode<T>* z);
     // debug
     void Display();
 
@@ -101,6 +103,14 @@ void RBTree<T>::InitializeNullNode(RBNode<T>* node, RBNode<T>* parent) {
     node->lc_ = nullptr;
     node->rc_ = nullptr;
     node->color_ = RB_BLACK;
+}
+template <typename T>
+RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
+    while (cur->lc_ != tNil) {
+        cur = cur->lc_;       
+    }
+    return cur;
+
 }
 template <typename T>
 void RBTree<T>::LeftRotate(RBNode<T>* x) {
@@ -198,10 +208,41 @@ template <typename T>
 void RBTree<T>::RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex) {
     if (toBeSubstituted->parent_ == tNil) root_ = vertex;
     else if (toBeSubstituted == toBeSubstituted->parent_->lc_) toBeSubstituted->parent_->lc_ = vertex;
-    else toBeSubstituted->parent_->lc_ = vertex;
+    else toBeSubstituted->parent_->rc_ = vertex;
+    // yes, the assignment to v.p happens unconditionally
     vertex->parent_ = toBeSubstituted->parent_;
 }
+template <typename T>
+void RBTree<T>::RBDeletion(RBNode<T>* z) {
+    RBNode<T>* y = z;
+    RBColor yOriginalColor = y->color_;
+    RBNode<T>* x = tNil;
+    if (z->lc_ == tNil) {
+        x = z->rc_;
+        RBTransplant(z, z->rc_); // replace z by its right child
+    } else if (z->rc_ == tNil) {
+        x = z->lc_;
+        RBTransplant(z, z->lc_); // replace z by its left child
+    } else {
+        y = TreeMinimum(z->rc_); // y is z's successor
+        yOriginalColor = y->color_;
+        x = y->rc_;
+        if (y != z->rc_) {
+            RBTransplant(y, y->rc_);
+            y->rc_ = z->rc_;
+            y->rc_->parent_ = y;
+        } else x->parent_ = y;
+        RBTransplant(z, y);
+        y->lc_ = z->lc_;
+        y->lc_->parent_ = y;
+        y->color_ = z->color_;
+    }
+    if (yOriginalColor == RB_BLACK) RBDeleteFixUp(x);
+}
+template <typename T>
+void RBTree<T>::RBDeleteFixUp(RBNode<T>* z) {
 
+}
 template <typename T>
 void RBTree<T>::Display(RBNode<T>* cur, int depth) {
     if (cur->lc_ != tNil && cur->lc_ != nullptr) Display(cur->lc_, depth + 1);
