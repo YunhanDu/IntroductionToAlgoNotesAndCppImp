@@ -113,7 +113,7 @@ RBNode<T>* RBTree<T>::RBInsert(T const& val) {
 
 2，要分析第4行到40行中while循环的总目标。
 
-3， 要分析while循环体中的3种情况（情况2执行完后紧跟着情况3, 情况2 和情况3不是互相独立的情形），看看它们如何完成目标的。
+3， 要分析while循环体中的3种case（case 2执行完后紧跟着case 3, case 2 和case 3不是互相独立的情形），看看它们如何完成目标的。
 
 ```c++
 template <typename T>
@@ -229,9 +229,51 @@ c. 我们已经证明了情况1保持性质5，性质1,3也不会破坏。
 
 ![](./RBInsertFIxUpCase2and3.PNG)
 
- 在case 2中，z是一个右孩子，我们通过一个左旋来讲case转变为case 3, 此时节点z变为左孩子。此时z和z.parent都是红色的，所以该旋转对节点的黑高和性质5都无影响。无论是直接进入case 2, 还是通过case 3进入case 2，z的uncle y总是黑色的，因为否则就要执行case 1。此外，节点z.parent.parent存在（进入情况2已经经过了第5行的判断），且在第16行将z往上移一层，然后在第17行将z往下移一层后，z.parent.parent的身份依然不变。在case3中，改变某些节点的颜色并做一次右旋，以此保持性质5。此时，z节点所在的路径中不存在两个连续的红色节点（个人认为第三版中文版与第四版英文版在这里都写错了，我修正了一下）。所有的处理到此结束了。此时z.p是黑色的，所以无需再次执行一次while循环。
+ 在case 2中，z是一个右孩子，我们通过一个左旋来讲case转变为case 3, 此时节点z变为左孩子。此时z和z.parent都是红色的，所以该旋转对节点的黑高和性质5都无影响。无论是直接进入case 2, 还是通过case 3进入case 2，z的uncle y总是黑色的，因为否则就要执行case 1。此外，节点z.parent.parent存在（进入情况2已经经过了第5行的判断），且在第16行将z往上移一层，然后在第17行将z往下移一层后，z.parent.parent的身份依然不变。在case3中，改变某些节点的颜色并做一次右旋，以此保持性质5。此时，z节点所在的路径中不存在两个连续的红色节点（个人认为第三版中文版与第四版英文版在这里都写错了，我修正了一下）。所有的处理到此结束了。此时z.parent是黑色的，所以无需再次执行一次while循环。
 
-现在我们来证明case 2和case 3保持了循环不变式。
+现在我们来证明case 2和case 3保持了循环不变式(如刚刚论证的结果，执行完case2和case3, 不会再次执行一次while循环)：
+
+a. case 2让z指向红色的z.parent, 之后在case2 和case3中z的颜色没有改变，下次迭代开始前z是红色（下次迭代不会执行），a成立。
+
+b. case 3将z.parent着色为黑色，此时如果z.parent在下次迭代开始前是根节点，那么根节点依然为黑色，b成立。
+
+c. 性质1,3,5在case 2和case 3中依然保持。
+
+因为节点z在case 2和case 3中不是根（因为节点z有uncle, 所以不可能是根），所以性质2不会被破坏。因为唯一一个着色为红色的节点在case 3中通过右旋变为一个黑色节点的子节点。
+
+情况2和情况3修正了对性质4的违反。由于没有其他红黑性质的违反，此时已是一棵合格的红黑树了。
+
+**终止阶段：**循环终止是因为z.parent是黑色的。此时树不会违反性质4。根据循环不变式，唯一会违反的是性质2，第42行会修复性质2，所以当RBInsertFixUp终止时，所有红黑性质都成立。
+
+此时，我们已证明了RBInsertFixUp能正确地修复所有的红黑性质。
+
+**运行时间分析**
+
+RBInsert中除了RBInsertFixUp的耗时为$O(lgn)$。在RBInsertFixUp中，仅当case1发生，while循环体才会重复执行。所以while循环可能被执行的总次数为$O(lgn)$ ，则RBInsert总耗时依然为$O(lgn)$ ，要注意RBInsertFixUp至多执行2次旋转操作。
+
+## 13.4 删除
+
+与插入操作相比，删除操作要稍微复杂些。
+
+从一棵红黑树中删除节点的过程是基于12.3节的TreeDeletion过程而来的。首先和之前BST一样，来个红黑树定制版的RBTransplant:
+
+```c++
+template <typename T>
+void RBTree<T>::RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex) {
+    if (toBeSubstituted->parent_ == tNil) root_ = vertex;
+    else if (toBeSubstituted == toBeSubstituted->parent_->lc_) toBeSubstituted->parent_->lc_ = vertex;
+    else toBeSubstituted->parent_->rc_ = vertex;
+    // yes, the assignment to v.p happens unconditionally
+    vertex->parent_ = toBeSubstituted->parent_;
+}
+```
+
+过程RBTransplant和12.3节的Transplant有2点不同：
+
+1. 第3行引用哨兵tNil而不是nullptr。
+2. 第7行对vertex.parent的赋值是无条件执行：即使vertex指向哨兵（vertex = tNil），也对 vertex.parent_赋值。
+
+过程RBDelete与12.3节的TreeDeletion类似，但多了几行代码。新增的代码用于记录节点y的踪迹，y有可能导致红黑性质的破坏。当想要删除节点z
 
 附录：
 
