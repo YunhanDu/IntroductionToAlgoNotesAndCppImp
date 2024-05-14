@@ -273,7 +273,44 @@ void RBTree<T>::RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex) {
 1. 第3行引用哨兵tNil而不是nullptr。
 2. 第7行对vertex.parent的赋值是无条件执行：即使vertex指向哨兵（vertex = tNil），也对 vertex.parent_赋值。
 
-过程RBDelete与12.3节的TreeDeletion类似，但多了几行代码。新增的代码用于记录节点y的踪迹，y有可能导致红黑性质的破坏。当想要删除节点z
+过程RBDelete与12.3节的TreeDeletion类似，但多了几行代码。新增的代码用于记录节点y的踪迹，y有可能导致红黑性质的破坏。当想要删除节点z, 且此时z的子节点少于2个时，z从树中删除，并让y成为z。当z有两个子节点时，y应该是z的后继，并且y将移至树中的z位置。在节点被移除或者在树中移动前，必须记住y的颜色，并记录节点x的踪迹，将x移至树中y的原来位置，因为节点x也可能引起红黑性质的破坏。删除节点z之后，RBDelete调用辅助过程RBDeleteFixUp通过改变颜色和执行旋转来恢复红黑性质。
+
+```c++
+template <typename T>
+void RBTree<T>::RBDeletion(RBNode<T>* z) {
+    RBNode<T>* y = z;
+    RBColor yOriginalColor = y->color_;
+    RBNode<T>* x = tNil;
+    if (z->lc_ == tNil) {
+        x = z->rc_;
+        RBTransplant(z, z->rc_); // replace z by its right child
+    } else if (z->rc_ == tNil) {
+        x = z->lc_;
+        RBTransplant(z, z->lc_); // replace z by its left child
+    } else {
+        y = TreeMinimum(z->rc_); // y is z's successor
+        yOriginalColor = y->color_;
+        x = y->rc_;
+        if (y != z->rc_) {
+            RBTransplant(y, y->rc_); // replace y by its right child
+            y->rc_ = z->rc_; // z's right child becomes y's right child
+            y->rc_->parent_ = y;
+        } else x->parent_ = y; // in case x is tNil
+        RBTransplant(z, y); // replace z by its successor y
+        y->lc_ = z->lc_; // and give z's left child to y
+        y->lc_->parent_ = y; // which had no left child
+        y->color_ = z->color_;
+    }
+    if (yOriginalColor == RB_BLACK) RBDeleteFixUp(x); // if any red-back violations occured, correct them
+}
+```
+
+即使RBDelete包含的代码行数几乎是TreeDelete的2倍，但这2个过程具有相同的情形结构。
+
+下面为两个过程的区别：
+
+1. RBDelete用tNil代替TreeDelete的tNil。
+2. 由于节点y为从树中删除的节点
 
 附录：
 
