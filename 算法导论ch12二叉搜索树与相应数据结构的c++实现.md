@@ -1,4 +1,97 @@
-算法导论ch12二叉搜索树与相应数据结构的c++实现
+算法导论ch12二叉搜索树与其数据结构的c++实现
+
+12.1 什么是二叉搜索树(BST)
+
+12.2 查询BST（读操作）
+
+BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor  和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 $O(h)$ 时间内执行完每个操作。
+
+查找--TreeSearch
+
+最大关键字元素--TreeMaximum和最小关键字元素--TreeMinimum
+
+ 后继--TreeSuccessor  和 前驱--TreePredecessor
+
+## 12.3 插入和删除（写操作）
+
+### 插入--TreeInsert
+
+插入
+
+### 删除--TreeDeletion
+
+从一颗BST中删除一个节点z（假设删除该节点前，BST一定储存了该节点）的整个策略可以分为如下三种基本情况：
+
+基本情况1：如果z没有child, 那只用简单地将它删除--通过修改它的父节点，用nullptr作为孩子替换z。
+
+基本情况2：如果z只有一个child，那么把该child提升到树中z的位置即可（相应算法实现稍后讲）。（中文第三版中相应的表述个人认为属于翻译错误）
+
+基本情况3：如果z有2个child, 则先找到z的后继y(一定在z的右子树中并且没有左孩子)， 让y占据树中z的位置。z原来右子树部分成为y的新右子树，并让z的左子树成为y的新左子树，此情形的相应算法实现有些棘手，因为还与y是否是z的right child相关。
+
+删除节点z的程序TreeDeletion会取指向该BST和节点z的指针作为输入参数（在我的c++实现里，指向BST的指针就是BST类的this指针，所以不会显示表示该参数），之前划分的三种情形可以重组拆分成如下的更适用于我们算法实现的四种情形：
+
+a. 节点z没有left child（如图12.4 a）, 那么用z的right child替换z, z可以是nullptr(对应基本情况1)，也可以不是nullptr。(对应基本情况2中z只有right child )
+
+b. 节点z没有right child（如图12.4 b）, 那么用z的left child替换z（对应基本情况2中z只有left child）
+
+否则，z一定有2个child，则先找到z的后继y。(一定在z的右子树中并且没有左孩子)：
+
+c, 如果y是z的right child（如图12.4 c）, 那么用y替换z。（对应基本情况3中y是z的right child）
+
+d, 否则，y不是z的right child（如图12.4 d)，在这种情况下，先用y的右孩子替换y，然后再用y替换z。（对应基本情况3中y不是z的right child）
+
+图12.4如下：
+
+![](D:\算法学习\IntroToAlgoandCppImplementation\IntroductionToAlgoNotesAndCppImp-main\12_4.png)
+
+为了在二叉树内移动子树，定义一个子过程Transplant, 它用一棵子树A(代码中vertex) 替换一棵子树B(代码中toBeSubstituted)并成为B(代码中toBeSubstituted)在其parent原来相应的child节点，其c++实现如下：
+
+```c++
+template <typename T> void BST<T>::Transplant(TreeNode<T>* toBeSubstituted, TreeNode<T>* vertex) {
+    if (toBeSubstituted->parent_ == nullptr) root_ = vertex;
+    else if (toBeSubstituted == toBeSubstituted->parent_->lc_) {
+        toBeSubstituted->parent_->lc_ = vertex;
+    } else toBeSubstituted->parent_->rc_ = vertex;
+    if (vertex != nullptr) vertex->parent_ = toBeSubstituted->parent_;
+}
+```
+
+利用现成的Transplant过程，下面是从二叉树T中删除节点的c++实现：
+
+```c++
+template <typename T> void BST<T>::TreeDeletion2(TreeNode<T>* z) {
+    // node target is used to updateHeight, you may not put too much attention on it
+    TreeNode<T>* target = z->parent_; // find the lowest node whose height may need to updated
+    if (z->lc_ == nullptr) {
+        Transplant(z, z->rc_); // case a: replace z by its right child
+        
+    } else if (z->rc_ == nullptr) {
+        
+        Transplant(z, z->lc_); // case b: replace z by its left child    
+    } else {
+        TreeNode<T>* y = TreeMinimum(z->rc_);
+        if (y->parent_ != z) { // is y farther down the tree?
+            // case d's first step: replace y by its right child 
+            Transplant(y, y->rc_); 
+            y->rc_ = z->rc_; // z's right child becomes
+            y->rc_->parent_ = y; // y's right child
+        }
+        // case c's procedure is the same as case d's last step
+        Transplant(z, y); // replace z by its successor y
+        y->lc_ = z->lc_; // and give z's left child to y
+        y->lc_->parent_ = y; // which had no left child
+        target = (y->rc_ == nullptr) ? y : y-> rc_;     
+    }
+    UpdateHeightAbove(target);
+    --size_;
+}
+```
+
+c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。
+
+12.4 随机构建二叉搜索树（第四版英文版已删除，不感兴趣直接跳过）
+
+
 
 BinarySearchTree.h
 
