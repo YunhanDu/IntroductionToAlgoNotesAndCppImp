@@ -131,7 +131,7 @@ void RBTree<T>::RBInsertFixUp(RBNode<T>* z) {
             } else {
                 if (z == z->parent_->rc_) {
                     // case 2: uncle is black and z is a right child 
-                    z == z->parent_;
+                    z = z->parent_;
                     LeftRotate(z);
                 }
                 // case 3: uncle is black and z is a left child
@@ -275,6 +275,8 @@ void RBTree<T>::RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex) {
 
 过程RBDelete与12.3节的TreeDeletion类似，但多了几行代码。新增的代码用于记录节点y的踪迹，y有可能导致红黑性质的破坏。当想要删除节点z, 且此时z的子节点少于2个时，z从树中删除，并让y成为z。当z有两个子节点时，y应该是z的后继，并且y将移至树中的z位置。在节点被移除或者在树中移动前，必须记住y的颜色，并记录节点x的踪迹，将x移至树中y的原来位置，因为节点x也可能引起红黑性质的破坏。删除节点z之后，RBDelete调用辅助过程RBDeleteFixUp通过改变颜色和执行旋转来恢复红黑性质。
 
+RBDeletion的c++实现与RBDeletion中的TreeMinimum如下:
+
 ```c++
 template <typename T>
 void RBTree<T>::RBDeletion(RBNode<T>* z) {
@@ -303,6 +305,13 @@ void RBTree<T>::RBDeletion(RBNode<T>* z) {
     }
     if (yOriginalColor == RB_BLACK) RBDeleteFixUp(x); // if any red-back violations occured, correct them
 }
+template <typename T>
+RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
+    while (cur->lc_ != tNil) {
+        cur = cur->lc_;       
+    }
+    return cur;
+}
 ```
 
 即使RBDelete包含的代码行数几乎是TreeDelete的2倍，但这2个过程具有相同的情形结构。
@@ -314,9 +323,29 @@ void RBTree<T>::RBDeletion(RBNode<T>* z) {
 3. 由于y的颜色可能改变，变量yOriginalColor存储了y的变化前颜色，第3行和第13行在给y赋值之后，立即设置该变量。当z有两个节点时，则$y \ne z$ 且第21行将y移动到z的位置，第23行将y的颜色着为z的颜色，当y为黑色时，移动y会违反红黑性质。
 4. RBDelete保持对x的跟踪，使其移动到y的初始位置上，第7,10,15行令x指向y的唯一孩子或哨兵tNil。
 5. 由于x移动到y的原始位置上，属性x.parent总是被设置指向树中y.parent的原始位置，甚至当x是哨兵tNil也是这样（对x.parent的赋值在RBTransplant第7行）。除非z是y的原始parent（此时由于z要被删除且y将占据z的位置，第20行将x.parent设置成y）。我曾认为第20行x.parent指向y是多此一举，由于x已经是y的孩子了，但RBDeleteFixUp依赖x.parent有明确指向，即使x是tNil，所以第20行代码是有必要的。
-6. 最后，如果y是黑色的，应该有1条或多条红黑性质被破坏，所以在第
+6. 最后，如果y是黑色的，应该有1条或多条红黑性质被破坏，所以在第26行调用RBDeleteFixUp来恢复红黑性质。如果y原本是红色， 有移动前后依然保持红黑性质，原因如下：
+   1. 树中黑高没变。（第四版练习13.4-1，证明见附录）
+   2. 不存在两个相邻的红节点。
 
 附录：
+
+Exercise 13.4-1
+
+Show that if node y in RB-DELETE is red, then no black-heights change.
+
+证明：y的原始颜色为红色，得分情形讨论：
+
+case 1 z被彻底删除前，y始终被赋值为 z且z为红色, 该情形下根据性质5和性质4，要被删除的节点z没有内部子节点，删掉z后，z的哨兵子节点tNil替代z, 显然不会影响黑高。
+
+case 2 要被删除节点z有两个内部子节点且z的后继原本为红色， 当z的后继, 即节点y, 为红色时，y的左孩子必然是哨兵tNil(因为y为z的后继)，同样以为性质5和性质4的约束， y的右孩子也必须是哨兵tNil。以此为前提，继续分情形讨论：
+
+​	case 2.1 z的后继为z的右孩子，y替代z, 颜色变为z的颜色，比较删除前以z为根节点的子树和删除后以y为根节点的子树，后者比前者至少了右一个红色节点， 黑高不变。
+
+​    case 2.2 z的后继不为z的右孩子，y的右孩子哨兵tNil替代y后，显然黑高不变。之后 y替代z,且y着色成z的颜色, z的。比较删除前以z为根节点的子树和删除后以y为根节点的子树，后者比前者至少了右一个红色节点， 黑高不变。
+
+综上，如果 RBDelete 中y是红色的，那么没有黑高会发生变化。得证。
+
+
 
 程序Tree
 
