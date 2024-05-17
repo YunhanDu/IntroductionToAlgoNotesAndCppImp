@@ -310,7 +310,11 @@ void RBTree<T>::RBDeletion(RBNode<T>* z) {
 下面为两个过程的区别：
 
 1. RBDelete用tNil代替TreeDelete的tNil。
-2. 由于节点y为从树中删除的节点
+2. 始终维持节点y为从树中删除的节点, 当第3行y指向z,且后续未发生变化，则z至多有1个节点，第12行的情形里z有2个孩子节点，y将指向z的后继，这与TreeDelete相同，y将移至树中z的位置。
+3. 由于y的颜色可能改变，变量yOriginalColor存储了y的变化前颜色，第3行和第13行在给y赋值之后，立即设置该变量。当z有两个节点时，则$y \ne z$ 且第21行将y移动到z的位置，第23行将y的颜色着为z的颜色，当y为黑色时，移动y会违反红黑性质。
+4. RBDelete保持对x的跟踪，使其移动到y的初始位置上，第7,10,15行令x指向y的唯一孩子或哨兵tNil。
+5. 由于x移动到y的原始位置上，属性x.parent总是被设置指向树中y.parent的原始位置，甚至当x是哨兵tNil也是这样（对x.parent的赋值在RBTransplant第7行）。除非z是y的原始parent（此时由于z要被删除且y将占据z的位置，第20行将x.parent设置成y）。我曾认为第20行x.parent指向y是多此一举，由于x已经是y的孩子了，但RBDeleteFixUp依赖x.parent有明确指向，即使x是tNil，所以第20行代码是有必要的。
+6. 最后，如果y是黑色的，应该有1条或多条红黑性质被破坏，所以在第
 
 附录：
 
