@@ -10,11 +10,11 @@
 
 一棵红黑树满足下面红黑性质的二叉树：
 
-1. 每个节点或是红色的，或是黑色的。
-2. 根节点是黑色的。
-3. 每个叶节点（Nil）是黑色的
-4. 如果一个节点是红色的，则它的两个子节点都是黑色的。
-5. 对每个节点，从该节点到其所有后代叶结点的简单路径上，均包含相同数目的黑色节点。
+1. **每个节点或是红色的，或是黑色的。**
+2. **根节点是黑色的。**
+3. **每个叶节点（Nil）是黑色的**
+4. **如果一个节点是红色的，则它的两个子节点都是黑色的。**
+5. **对每个节点，从该节点到其所有后代叶结点的简单路径上，均包含相同数目的黑色节点。**
 
 ## 13.2旋转
 
@@ -50,7 +50,7 @@ LeftRotate程序实现左旋功能的详细流程如下图所示：
 
 RightRotate的代码实现和LeftRotate的代码实现是对称的，把 rc和 lc 对调一下即可。
 
-RightRotate的c++代码实现如下（习题13.2-1）：
+RightRotate的c++代码实现如下（Exercise 13.2-1）：
 
 ```c++
 template <typename T>
@@ -169,7 +169,7 @@ void RBTree<T>::RBInsertFixUp(RBNode<T>* z) {
 
 性质1，性质3和性质5都不会被破坏。由于z一开始被着色为红色，只有性质2和性质4有可能被破坏。上图(a)显示在插入节点z后，性质4被破坏的情况。
 
-while循环中的第5至第40行有两个等价对称情形：第5行到23行处理z的parent 是 z的grandParent 的leftChild的情形，第24行到40行处理的是z的grandParent 的rightChild的情形。基于第24行到40行和第5行到23行的对称等价性，我们的论证只聚焦于第5行到23行。
+while循环中的第5至第40行有两个等价对称情形：第5行到23行处理z的parent 是 z的grandParent 的leftChild的情形，第24行到40行处理的是z的parent 是z的grandParent 的rightChild的情形。基于第24行到40行和第5行到23行的对称等价性，我们的论证只聚焦于第5行到23行。
 
 第5行到23行的while循环在每次迭代开头保持下面3个部分的**循环不变式**：
 
@@ -178,8 +178,6 @@ a. 节点z是红节点。
 b. 如果z.parent是根节点，那么z.parent是黑节点。
 
 c. 如果有任何红黑性质被破坏，则至多只有一条被破坏，或是性质2(因为此时z为根节点且为红节点)，或是性质4（因为此时z和z.parent都是红节点）。
-
-c部分是专门处理红黑性质的破坏的，所以显然相比a部分和b部分，c部分更是RBInsertFixUp维护红黑性质的中心内容。我们将以此来理解代码中的各个情形。由于我们聚焦于节点z和树中靠近它的节点。。。(不明白书中在说什么)
 
 我们要证明上面的循环不变式（a, b, c）在第一次迭代前，后续每一次迭代开头为真，并在while循环终止时，这些不变式会给出一个有用的性质。同时循环中每次迭代都有两种可能的结果：
 
@@ -195,7 +193,7 @@ b. 当z.parent是根节点，则z.parent最开始是黑色的，在RBInsertFixUp
 
 c. 性质1,3,5都不会被违背，初始阶段中，性质2也不会违背，因为初始阶段z为根节点时，我的c++代码不会调用RBInsertFixUp。
 
-如果违反了性质4，此时z和z.parent都是红色的，**且没有其他红黑性质被违背**。（性质4的破坏只因为z和z.parent都是红色的。）
+如果违反了性质4，此时z和z.parent都是红色的，**且没有其他红黑性质被违背**，c成立。（性质4的破坏只是因为z和z.parent都是红色的。）
 
 **保持阶段：**实际需要考虑while循环内的6种情形，由于其中前3种和后3种是对称的。我们只用验证前3种情况（第5行到23行）。**由于初始化阶段已经证明循坏不变式成立，此时我们可以假设本轮迭代开头循环不变式成立（数学归纳法的基本套路）**。那么根据循环不变式b部分（如果z.parent是根，那么z.parent为黑色的），可知z.parent.parent存在。因为只有z.parent为红色才进入一次循环迭代，所以z.parent不可能是根节点，所以z.parent.parent必然存在。
 
@@ -203,7 +201,7 @@ case1 与 case2, case3的区别在于z的uncle, y的颜色。第6行y指向z的u
 
 **case 1: z的uncle是红色的。**
 
-下图显示了case1的情形，这种情况在z.p和y都是红色时发生。因为z.parent和y都是红色时发生。此时z.parent.parent是黑色的，我们要讲z.parent和y都着为黑色，以此解决z和z.parent都是红色的问题，将z.parent.parent着色为红色以保持性质5.然后，把z.parent.parent作为新节点z来重复while循环，指针z在树中上移两层
+下图显示了case1的情形，这种情况在z.p和y都是红色时发生。因为z.parent和y都是红色时发生。此时z.parent.parent是黑色的，我们要将z.parent和y都着为黑色，以此解决z和z.parent都是红色的问题，将z.parent.parent着色为红色以保持性质5.然后，把z.parent.parent作为新节点z来重复while循环，指针z在树中上移两层
 
 ![](./InsertCase1.PNG)
 
@@ -217,9 +215,9 @@ c. 我们已经证明了情况1保持性质5，性质1,3也不会破坏。
 
 ​    如果节点 $z^{'}$ 在下一次迭代开始时是根节点，那么case 1修正了性质4的同时破坏了性质2（因为根节点 $z^{'}$ 在本轮迭代中变为红色）。
 
-​	如果节点 $z^{'}$ 在下一次迭代开始时不是根节点，则本次迭代不会修改根节点颜色，那么case 1不会违背性质2。case 1修正了在本次迭代的开始唯一违反性质4，             之后把节点 $z^{'}$ 染红而 不改变 $z^{'}.parent$ 。如果 $z^{'}.parent$ 是黑色，则没违反性质4，也不会进入下次迭代，迭代结束。若 $z^{'}.parent$ 是红色，则违反性质4。
+​	如果节点 $z^{'}$ 在下一次迭代开始时不是根节点，则本次迭代不会修改根节点颜色，那么case 1不会违背性质2。case 1修正了在本次迭代的开始唯一违反性质4，             之后把节点 $z^{'}$ 染红而 不改变 $z^{'}.parent$ 。如果 $z^{'}.parent$ 是黑色，则没违反性质4，也不会进入下次迭代，迭代结束。若 $z^{'}.parent$ 是红色，则再次违反性质4。
 
-​    因此因此下次迭代的开始时c成立。
+​    因此下次迭代的开始时c成立。
 
 **case 2: z的uncle是黑色的且z是一个右孩子。**
 
@@ -229,7 +227,7 @@ c. 我们已经证明了情况1保持性质5，性质1,3也不会破坏。
 
 ![](./RBInsertFIxUpCase2and3.PNG)
 
- 在case 2中，z是一个右孩子，我们通过一个左旋来讲case转变为case 3, 此时节点z变为左孩子。此时z和z.parent都是红色的，所以该旋转对节点的黑高和性质5都无影响。无论是直接进入case 2, 还是通过case 3进入case 2，z的uncle y总是黑色的，因为否则就要执行case 1。此外，节点z.parent.parent存在（进入情况2已经经过了第5行的判断），且在第16行将z往上移一层，然后在第17行将z往下移一层后，z.parent.parent的身份依然不变。在case3中，改变某些节点的颜色并做一次右旋，以此保持性质5。此时，z节点所在的路径中不存在两个连续的红色节点（个人认为第三版中文版与第四版英文版在这里都写错了，我修正了一下）。所有的处理到此结束了。此时z.parent是黑色的，所以无需再次执行一次while循环。
+ 在case 2中，z是一个右孩子，我们通过一个左旋来将case 2转变为case 3, 此时节点z变为左孩子。此时z和z.parent都是红色的，所以该旋转对节点的黑高和性质5都无影响。无论是直接进入case 2, 还是通过case 3进入case 2，z的uncle y总是黑色的，因为否则就要执行case 1。此外，节点z.parent.parent存在（进入情况2已经经过了第5行的判断），且在第16行将z往上移一层，然后在第17行将z往下移一层后，z.parent.parent的身份依然不变。在case3中，改变某些节点的颜色并做一次右旋，以此保持性质5。此时，z节点所在的路径中不存在两个连续的红色节点（个人认为第三版中文版与第四版英文版在这里都写错了，我修正了一下）。所有的处理到此结束了。此时z.parent是黑色的，所以无需再次执行一次while循环。
 
 现在我们来证明case 2和case 3保持了循环不变式(如刚刚论证的结果，执行完case2和case3, 不会再次执行一次while循环)：
 
@@ -314,7 +312,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 }
 ```
 
-即使RBDelete包含的代码行数几乎是TreeDelete的2倍，但这2个过程具有相同的情形结构。
+即使RBDelete包含的代码行数几乎是TreeDelete的2倍，但这2个过程具有相同的结构。
 
 下面为两个过程的区别：
 
@@ -344,9 +342,73 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    其c++实现如下：
 
-   
+   ```c++
+   template <typename T>
+   void RBTree<T>::RBDeleteFixUp(RBNode<T>* x) {
+       while (x != root_ && x->color_ == RB_BLACK) {
+           if (x == x->parent_->lc_) {
+               RBNode<T>* w = x->parent_->rc_;
+               if (w->color_ == RB_RED) {
+                   // case 1
+                   w->color_ = RB_BLACK;
+                   x->parent_->color_ = RB_RED;
+                   LeftRotate(x->parent_);
+                   w = x->parent_->rc_;
+               }
+               if (w->lc_->color_ == RB_BLACK && w->rc_->color_ == RB_BLACK) {
+                   // case 2
+                   w->color_ = RB_RED;
+                   x = x->parent_;
+               } else {
+                   if ( w->rc_->color_ == RB_BLACK) {
+                       // case 3
+                       w->lc_->color_ = RB_BLACK;
+                       w->color_ = RB_RED;
+                       RightRotate(w);
+                       w = x->parent_->rc_;
+                   }
+                   // case 4
+                   w->color_ = x->parent_->color_;
+                   x->parent_->color_ = RB_BLACK;
+                   w->rc_->color_ = RB_BLACK;
+                   LeftRotate(x->parent_);
+                   x = root_;
+               }
+           } else { // same as above cases, but with "right" and "left" exchanged
+               RBNode<T>* w = x->parent_->lc_;
+               if (w->color_ == RB_RED) {
+                   // case 1
+                   w->color_ = RB_BLACK;
+                   x->parent_->color_ = RB_RED;
+                   RightRotate(x->parent_);
+                   w = x->parent_->lc_;
+               }
+               if (w->rc_->color_ == RB_BLACK && w->lc_->color_ == RB_BLACK) {
+                   // case 2
+                   w->color_ = RB_RED;
+                   x = x->parent_;
+               } else {
+                   if ( w->rc_->color_ == RB_BLACK) {
+                       // case 3
+                       w->rc_->color_ = RB_BLACK;
+                       w->color_ = RB_RED;
+                       LeftRotate(w);
+                       w = x->parent_->lc_;
+                   }
+                   // case 4
+                   w->color_ = x->parent_->color_;
+                   x->parent_->color_ = RB_BLACK;
+                   w->lc_->color_ = RB_BLACK;
+                   RightRotate(x->parent_);
+                   x = root_;
+               }
+           }
+       }
+       x->color_ = RB_BLACK;
+   }
+   ```
 
-   正文这里优先证明如何恢复性质1，至于恢复性质2和性质4的证明请看附录里Exercise13.4-2和13.4-3。
+   正文这里优先证明如何恢复性质1，至于恢复性质2和性质4的证明请看附录里Exercise13.4-2和13.4-3的解答。
 
    
 
@@ -419,6 +481,26 @@ public:
         tNil = new RBNode<T>();
         tNil->color_ = RB_BLACK;
         root_ = tNil;
+    }
+    ~RBTree() { 
+        std::cout << "Hi, my job is done. " << "\n";
+        int toBeDel = 0;
+        auto del =[&toBeDel](RBNode<T>* cur) {
+            delete cur;
+            cur = nullptr;
+            ++toBeDel;
+        };
+        TravelPreRecursive(root_, del);
+        std::cout << "Here is the total num of Deleted nodes : " << toBeDel << std::endl;
+        
+    }
+    // 4.1 recursive version of PreOrder traversal
+    template <typename VST>
+    void TravelPreRecursive(RBNode<T>* node, VST& visit) {
+        if (node == tNil || node == nullptr) return;
+        visit(node);  
+        TravelPreRecursive(node->lc_, visit);
+        TravelPreRecursive(node->rc_, visit); 
     }
     RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
     void LeftRotate(RBNode<T>* x);
@@ -581,7 +663,66 @@ void RBTree<T>::RBDeletion(RBNode<T>* z) {
 }
 template <typename T>
 void RBTree<T>::RBDeleteFixUp(RBNode<T>* z) {
-
+    while (x != root_ && x->color_ == RB_BLACK) {
+        if (x == x->parent_->lc_) {
+            RBNode<T>* w = x->parent_->rc_;
+            if (w->color_ == RB_RED) {
+                // case 1
+                w->color_ = RB_BLACK;
+                x->parent_->color_ = RB_RED;
+                LeftRotate(x->parent_);
+                w = x->parent_->rc_;
+            }
+            if (w->lc_->color_ == RB_BLACK && w->rc_->color_ == RB_BLACK) {
+                // case 2
+                w->color_ = RB_RED;
+                x = x->parent_;
+            } else {
+                if ( w->rc_->color_ == RB_BLACK) {
+                    // case 3
+                    w->lc_->color_ = RB_BLACK;
+                    w->color_ = RB_RED;
+                    RightRotate(w);
+                    w = x->parent_->rc_;
+                }
+                // case 4
+                w->color_ = x->parent_->color_;
+                x->parent_->color_ = RB_BLACK;
+                w->rc_->color_ = RB_BLACK;
+                LeftRotate(x->parent_);
+                x = root_;
+            }
+        } else { // same as above cases, but with "right" and "left" exchanged
+            RBNode<T>* w = x->parent_->lc_;
+            if (w->color_ == RB_RED) {
+                // case 1
+                w->color_ = RB_BLACK;
+                x->parent_->color_ = RB_RED;
+                RightRotate(x->parent_);
+                w = x->parent_->lc_;
+            }
+            if (w->rc_->color_ == RB_BLACK && w->lc_->color_ == RB_BLACK) {
+                // case 2
+                w->color_ = RB_RED;
+                x = x->parent_;
+            } else {
+                if ( w->rc_->color_ == RB_BLACK) {
+                    // case 3
+                    w->rc_->color_ = RB_BLACK;
+                    w->color_ = RB_RED;
+                    LeftRotate(w);
+                    w = x->parent_->lc_;
+                }
+                // case 4
+                w->color_ = x->parent_->color_;
+                x->parent_->color_ = RB_BLACK;
+                w->lc_->color_ = RB_BLACK;
+                RightRotate(x->parent_);
+                x = root_;
+            }
+        }
+    }
+    x->color_ = RB_BLACK;
 }
 template <typename T>
 void RBTree<T>::Display(RBNode<T>* cur, int depth) {
