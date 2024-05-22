@@ -2,7 +2,11 @@
 
 作者：Claude Du
 
+框架和核心c++代码已写完，全文暂时未写完，期望本周可以完成。
 
+本文主要内容来源于算法导论2022年第四版英文版，13.3节和13.4节基本就是英文翻译，与修改了原书中部分描述性的错误。
+
+红黑树整体的c++实现已放在附录中。
 
 ## 13.1红黑树性质
 
@@ -249,7 +253,7 @@ c. 性质1,3,5在case 2和case 3中依然保持。
 
 RBInsert中除了RBInsertFixUp的耗时为$O(lgn)$。在RBInsertFixUp中，仅当case1发生，while循环体才会重复执行。所以while循环可能被执行的总次数为$O(lgn)$ ，则RBInsert总耗时依然为$O(lgn)$ ，要注意RBInsertFixUp至多执行2次旋转操作。
 
-## 13.4 删除
+## 13.4 删除（遵循第4版英文版）
 
 与插入操作相比，删除操作要稍微复杂些。
 
@@ -336,7 +340,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    1. 如果y最初为根节点，被删除后，y的一个红色节点成为新的根节点，那么违反性质2。
    2. 如果x和x的新的父节点都是红色，那么违反了性质4。
-   3. 如果在y所在的简单路径上移动y导致先前包含y的任何简单路径上黑节点个数减少1个，违反原来的性质5。这个问题可以通过把y的黑色传递给x解决，这样x多了一个额外的黑色，如果x原来为黑色，变成双重黑色。如果x原来为红色，变成了红黑双色，这样虽然维护了性质5，但违反了性质1。所以我们应该通过修改颜色来解决这个问题。
+   3. 如果在y所在的简单路径上移动y导致先前包含y的任何简单路径上黑节点个数减少1个，违反原来的性质5。这个问题可以通过把y的黑色传递给x解决，这样x多了一个额外的黑色，如果x原来为黑色，变成双重黑色。如果x原来为红色，变成了红黑双色，这样虽然维护了性质5，但违反了性质1。所以我们应该通过修改颜色来解决这个问题（性质1）。
 
    现在看RBFDeleteFixUp如何恢复搜索树的红黑性质的。
 
@@ -410,6 +414,28 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    正文这里优先证明如何恢复性质1，至于恢复性质2和性质4的证明请看附录里Exercise13.4-2和13.4-3的解答。
 
+    RBDeleteFixUp中第4-61行，中while循环的作用就是在树中移动额外的黑色直到以下情况停止：
+
+   1. x指向一个红黑双色节点(我不懂)，此时在第62行，将 x 着为黑色。
+   2. x指向根节点，由于根节点已经为黑色，额外的黑色自动消失。
+   3. 经过合适的旋转和着色操作，退出循环。
+
+   和RBInsertFixUp类似，RBDeleteFixUp也处理了两种对称情形：第5~31行处理节点x为left child, 第33~60行处理x为right child情形。我们只关注第一种情况，即第4~31行。
+
+   在while循环中，x总指向非根双重黑色的节点（不太懂为啥是双重黑色，黑腿加黑丝？）, 在第4行判断x是否是left child，用w指向x的兄弟，因为x是双重黑节点以及性质5的限制，所以w不可能指向tNil。
+
+   重新想到RBDelete中第17行RBTransplant中或第20行进行了配置x.parent（即使x是哨兵也要配置x.parent)。这是因为RBDeleteFixUp要多次访问x.parent。
+
+   下图13.7描绘了x是left child的四种情况，核心思路就是要维护性质5，从树或者子树的根到子树 $\alpha, \beta, \gamma, \epsilon, \varepsilon, \zeta$ 之间黑色（包含额外黑色）节点个数不变。
+
+   ![](./RBDeletionFixUpCases.PNG)
+
+   图13.7(a)展现了情况1，从图中子树根节点到子树 $\alpha$ 或 $\beta$ 之间的黑色节点个数在旋转前后均为3（x为双重黑色，统计时+2）， 相似的，从图中子树根节点到子树 $\gamma$ , $\epsilon$ , $\varepsilon$ 或 $\zeta$ 之间的黑色节点个数在旋转前后均为2 。
+
+   图13.7(b)中必须考虑图中子树根节点颜色c的影响，$c=RED$ 表示节点是红黑双色，$c=BLACK$ 表示节点是双重黑色。如果我们定义 $count(RED)=0$  和 $count(BLACK)=1$, 那么从根节点到 $\alpha$ 之间的黑色节点个数为 $2+count(c)$， 且转换前后保持不变。
+
+   
+
    
 
    
@@ -438,7 +464,7 @@ case 2 要被删除节点z有两个内部子节点且z的后继原本为红色�
 
 
 
-程序Tree
+程序RBTree的整体c++实现
 
 ```c++
 #ifndef BlackRedTree_h
@@ -743,52 +769,7 @@ void RBTree<T>::Display() {
 
 int main()
 {
-    // // Test TreeNode
-    // TreeNode<int>* root = new TreeNode<int>(8);
-    // root->insertAsLC(5);
-    // root->insertAsRC(11);
-    // root->lc_->insertAsLC(3);
-    // root->lc_->insertAsRC(7);
-    // root->rc_->insertAsRC(12); 
-    // std::vector<int> record;
-    // auto visit = [&](TreeNode<int>* node) {
-    //     record.emplace_back(node->data_);
-    //     std::cout << node->data_ << " ";
-    // };
-    // root->travelLevel(visit);
-    // std::cout << "\n";
-    // record.clear();
-    // // Test BST
-    // BST<int> bst;
-    // TreeNode<int>* node8 = bst.TreeInsert(8);
-    // TreeNode<int>* node12 = bst.TreeInsert(12);
-    // bst.TreeInsert(5);
-    // bst.TreeInsert(3);
-    // bst.TreeInsert(7);
-    // bst.TreeInsert(13);
-    // bst.TreeInsert(10);
-    // bst.TreeInsert(11);
-    // bst.TreeInsert(9);
-    // bst.TreeInsert(16);
-    // bst.travelIn(visit);
-    // std::cout << "\n";
-    // std::cout << bst.size() << "\n";
-    // record.clear();
-    // bst.Display();
-    // bst.LeftRotate(node8);
-    // bst.Display();
-    // bst.RightRotate(node12);
-    // bst.Display();
-    // bst.TreeDeletion(10);
-    // std::cout << bst.size() << "\n";
-    // bst.Display();
-    // bst.TreeDeletion(9);
-    // std::cout << bst.size() << "\n";
-    // bst.Display();
-    // bst.TreeDeletion(16);
-    // std::cout << bst.size() << "\n";
-    // bst.Display();
-    // std::cout << "TreeMaximum: " << bst.TreeMaximum()->data_ << "\n";
+
     RBTree<int> rbTree;
     RBNode<int>* node8 = rbTree.RBInsert(8);
     RBNode<int>* node12 = rbTree.RBInsert(12);
@@ -807,5 +788,34 @@ int main()
     rbTree.Display();
 }
 #endif /*BinarySearchTree_h*/
+```
+
+运行结果：
+
+```
+            L----(3)-RED
+      L----(5)-BLK
+            R----(7)-RED
+(8)-BLK
+                  L----(9)-RED
+            L----(10)-BLK
+                  R----(11)-RED
+      R----(12)-RED
+            R----(13)-BLK
+                  R----(16)-RED
+
+
+The node with value 12 has been deleted
+            L----(3)-RED
+      L----(5)-BLK
+            R----(7)-RED
+(8)-BLK
+                  L----(9)-RED
+            L----(10)-BLK
+                  R----(11)-RED
+      R----(13)-RED
+            R----(16)-BLK
+Hi, my job is done.
+Here is the total num of Deleted nodes : 9
 ```
 
