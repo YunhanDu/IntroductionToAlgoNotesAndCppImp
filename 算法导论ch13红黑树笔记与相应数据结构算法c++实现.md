@@ -2,11 +2,19 @@
 
 作者：Claude Du
 
-框架和核心c++代码已写完，全文暂时未写完，期望本周可以完成。
+本文主要内容来源于算法导论2022年第四版英文版与17年第三版中文版，13.3节和13.4节基本就是对英文原文进行了翻译，并自行修改了原书中部分描述性的错误，以及自行大量补充了原书中本要求读者自行求证的内容，这可能是您在互联网上能够找到的第一篇这样诚意满满的基于英文原书的中文红黑树C++实现算法资料。（抱歉，本人师从Lebron，最近在钻研goat定制化技术）
 
-本文主要内容来源于算法导论2022年第四版英文版，13.3节和13.4节英文翻译，与修改了原书中部分描述性的错误。
+红黑树是算法中比较困难的一个topic, 写这篇文章难免会各种各样的犯错，如果大家发现本文中的错误, 欢迎在评论中指出。如果觉得本文有用的话，还是希望大家点赞，收藏转发与订阅。
 
-红黑树整体的c++实现已放在附录中。
+前提警告：这是篇充斥着算法与代码细节的万字长文！！
+
+现在想想似乎应该把这个篇章分成上中下三篇笔记，来方便大家阅读。
+
+但是我拒绝。
+
+<img src="./%E6%8B%92%E7%B5%95-talking.gif" style="zoom: 200%;" />
+
+以下是各个小篇章简介与阅读建议：
 
 ## 13.1红黑树性质
 
@@ -19,6 +27,10 @@
 3. **每个叶节点（Nil）是黑色的**
 4. **如果一个节点是红色的，则它的两个子节点都是黑色的。**
 5. **对每个节点，从该节点到其所有后代叶结点的简单路径上，均包含相同数目的黑色节点。**
+
+图13-1(a)显示了一个红黑树的例子。
+
+
 
 ## 13.2旋转
 
@@ -520,8 +532,6 @@ Argue that if in RB-DELETE both x and x.parent are red, then property 4 is resto
 程序RBTree的整体c++实现
 
 ```c++
-#ifndef BlackRedTree_h
-#define BlackRedTree_h
 // author: Claude Du
 #include "TreeNode.h"
 #include <iostream>
@@ -592,6 +602,8 @@ public:
     // bool RBDeletion(T const& val);
     void RBDeletion(RBNode<T>* z);
     void RBDeleteFixUp(RBNode<T>* z);
+    template <typename VST>
+    void travelPre(VST& visit) { if (root_) root_->travelPre(visit); }
     // debug
     void Display();
 
@@ -616,7 +628,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 template <typename T>
 void RBTree<T>::LeftRotate(RBNode<T>* x) {
     RBNode<T>* y = x->rc_;
-    if (y == nullptr) return;
+    if (y == tNil) return;
     x->rc_ = y->lc_;
     if (y->lc_ != tNil) y->lc_->parent_ = x;
     y->parent_ = x->parent_;
@@ -629,7 +641,7 @@ void RBTree<T>::LeftRotate(RBNode<T>* x) {
 template <typename T>
 void RBTree<T>::RightRotate(RBNode<T>* x) {
     RBNode<T>* y = x->lc_;
-    if (y == nullptr) return;
+    if (y == tNil) return;
     x->lc_ = y->rc_;
     if (y->rc_ != tNil) y->rc_->parent_ = x;
     y->parent_ = x->parent_;
@@ -676,11 +688,11 @@ void RBTree<T>::RBInsertFixUp(RBNode<T>* z) {
                 z = z->parent_->parent_;
             } else {
                 if (z == z->parent_->rc_) {
-                    // case 2: uncle is red and 
-                    z == z->parent_;
+                    // case 2: uncle is black and z is a right child 
+                    z = z->parent_;
                     LeftRotate(z);
                 }
-                // case 3
+                // case 3: uncle is black and z is a left child
                 z->parent_->color_ = RB_BLACK;
                 z->parent_->parent_->color_ = RB_RED;
                 RightRotate(z->parent_->parent_);
@@ -729,19 +741,19 @@ void RBTree<T>::RBDeletion(RBNode<T>* z) {
         yOriginalColor = y->color_;
         x = y->rc_;
         if (y != z->rc_) {
-            RBTransplant(y, y->rc_);
-            y->rc_ = z->rc_;
+            RBTransplant(y, y->rc_); // replace y by its right child
+            y->rc_ = z->rc_; // z's right child becomes y's right child
             y->rc_->parent_ = y;
-        } else x->parent_ = y;
-        RBTransplant(z, y);
-        y->lc_ = z->lc_;
-        y->lc_->parent_ = y;
+        } else x->parent_ = y; // in case x is tNil
+        RBTransplant(z, y); // replace z by its successor y
+        y->lc_ = z->lc_; // and give z's left child to y
+        y->lc_->parent_ = y; // which had no left child
         y->color_ = z->color_;
     }
-    if (yOriginalColor == RB_BLACK) RBDeleteFixUp(x);
+    if (yOriginalColor == RB_BLACK) RBDeleteFixUp(x); // if any red-back violations occured, correct them
 }
 template <typename T>
-void RBTree<T>::RBDeleteFixUp(RBNode<T>* z) {
+void RBTree<T>::RBDeleteFixUp(RBNode<T>* x) {
     while (x != root_ && x->color_ == RB_BLACK) {
         if (x == x->parent_->lc_) {
             RBNode<T>* w = x->parent_->rc_;
@@ -785,7 +797,7 @@ void RBTree<T>::RBDeleteFixUp(RBNode<T>* z) {
                 w->color_ = RB_RED;
                 x = x->parent_;
             } else {
-                if ( w->rc_->color_ == RB_BLACK) {
+                if ( w->lc_->color_ == RB_BLACK) {
                     // case 3
                     w->rc_->color_ = RB_BLACK;
                     w->color_ = RB_RED;
