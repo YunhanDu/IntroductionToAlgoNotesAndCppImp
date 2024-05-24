@@ -2,17 +2,17 @@
 
 作者：Claude Du
 
-本文主要内容来源于算法导论2022年第四版英文版与17年第三版中文版，13.3节和13.4节除了对英文原文进行了翻译，还自行修改了原书中部分描述性的错误，以及自行大量补充了原书中本要求读者自行求证的内容。这很可能是您在互联网上能够找到的第一篇如此诚意满满的，基于算法导论英文原书，手把手式的中文红黑树C++实现教程资料。（抱歉，本人师从Lebron，最近在钻研goat定制化奥义---疯狂加限定定语）
+​       本文主要内容来源于算法导论2022年第四版英文版与17年第三版中文版，13.3节和13.4节除了对英文原文进行了翻译，还自行修改了原书中部分描述性的错误，以及自行大量补充了原书中本要求读者自行求证的内容。这很可能是您在互联网上能够找到的第一篇如此诚意满满的，基于算法导论英文原书，手把手式的中文红黑树C++实现教程资料。（抱歉，本人师从Lebron，最近在钻研goat定制化奥义---疯狂加限定定语）
 
-红黑树在算法中属于比较难的一个topic, 写这篇文章也充满了挑战与困难，也难免会各种各样的犯错，如果大家发现本文中的错误, 欢迎在评论中指出。如果觉得本文有用的话，还是希望大家能点赞，收藏，转发与订阅的方式来支持一下。
+​       红黑树在算法中属于比较难的一个topic, 写这篇文章也充满了挑战与困难，也难免会各种各样的犯错，如果大家发现本文中的错误, 欢迎在评论中指出。如果觉得本文有用的话，还是希望大家能点赞，收藏，转发与订阅的方式来支持一下。
 
 前提警告：这是篇充斥着算法与代码细节的万字长文干货！！
 
-现在想想要不要把这个篇章分成上中下三篇笔记，来方便大家阅读呢？
+​       现在想想要不要把这个篇章分成上中下三篇笔记，来方便大家阅读呢？
 
 
 
-但是我拒绝。
+​      但是我拒绝。
 
 <img src="./%E6%8B%92%E7%B5%95-talking.gif" style="zoom: 200%;" />
 
@@ -26,9 +26,9 @@
 
 这两章节可以在1天读完并检验旋转操作。
 
-13.3节讲解红黑树的插入操作与代码实现细节，难度较大，建议单独花一天阅读。
+13.3节讲解红黑树的插入操作与代码实现细节，难度较大，建议单独花一天阅读与尝试实现插入功能。
 
-13.4节讲解红黑树的删除操作与代码实现细节，难度比13.3节大，建议单独花1~3天阅读。
+13.4节讲解红黑树的删除操作与代码实现细节，难度比13.3节大，建议单独花1~3天阅读与尝试实现删除功能。
 
 ## 13.1红黑树性质
 
@@ -126,9 +126,9 @@ n \geq 2^{h/2} - 1
 $$
 把上等式稍作变形，得到 $h \leq 2lg(n+1)$ , 引理得证。
 
-由该引理可知，动态集合操作Search, Minimum, Maximum, Successor和Predecessor可在红黑树上在 $O(lg(n))$ 时间内执行（见12章二叉搜索书，该章笔记与c++实现预计下周完成）。虽然当给定一棵红黑树作为输入时，第12章的TreeInsert和TreeDelete的运行时间为 $O(lg(n))$，但是这两个操作算法不适用于红黑树，因为它们并不能保证被这些操作修改后的二叉搜索树仍是红黑树，红黑树自己的插入与删除操作会在13.3和13.4章节介绍。
+由该引理可知，动态集合查询操作Search, Minimum, Maximum, Successor和Predecessor可在红黑树上在 $O(lg(n))$ 时间内执行（见12章二叉搜索书，该章笔记与c++实现预计下周完成）。虽然当给定一棵红黑树作为输入时，第12章的TreeInsert和TreeDelete的运行时间为 $O(lg(n))$，但是这两个操作算法不适用于红黑树，因为它们并不能保证被这些操作修改后的二叉搜索树仍是红黑树，红黑树自己的插入与删除操作会在13.3和13.4章节介绍。
 
-红黑树的代码主题框架如下：
+红黑树的代码主题框架如下，（暂时没有添加太多查询操作，下周一定添加）：
 
 ```c++
 template <typename T> class RBTree {
@@ -138,10 +138,10 @@ private:
     const vector<std::string> colorStr{"RED", "BLK"};
     void LeftRotate(RBNode<T>* x);
     void RightRotate(RBNode<T>* x);
-    
+    RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
     void Display(RBNode<T>* cur, int depth = 0);
     void RBInsertFixUp(RBNode<T>* z);
-    void RBDeleteFixUp(RBNode<T>* z);
+    void RBDeleteFixUp(RBNode<T>* z);   
 public:
     RBTree() {
         tNil = new RBNode<T>();
@@ -170,7 +170,7 @@ public:
         TravelPreRecursive(node->lc_, visit);
         TravelPreRecursive(node->rc_, visit); 
     }
-    RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
+    
 
     // insertion
     RBNode<T>* RBInsert(T const& val);
@@ -187,13 +187,13 @@ public:
 
 我加条评论：
 
-​		二叉搜素树Aio对二叉搜索树BoBo说道：“BoBo, BST的能力真是有限的呀，在我短暂的树生里学到，BST越是频繁修改自己，就约会在预料之外的事态上		失足变成链表，要成为超越BST的存在呀！”
+​		二叉搜素树Aio对二叉搜索树BoBo说道：“BoBo, BST的能力真是有限的呀！我在短暂的树生里学到，BST越是频繁修改自己，就约会在预料之外的事态上		失足变成链表，要成为超越BST的存在呀！”
 
 ​		二叉搜索树BoBo不解：“什么，你在说什么？”
 
-​		二叉搜素树Aio掏出黑色面具（正面黑色，反面红色）戴在自己的头节点上，大喊：“我不做BST了，BoBo!”
+​		二叉搜素树Aio掏出黑色面具（正面黑色，反面红色）戴在自己的头节点上，兴奋地大喊道：“我不做BST啦，BoBo!”
 
-​       二叉搜素树Aio给自己立了5条人设，不，树设，从此变成了一棵红黑树。
+​       二叉搜素树Aio自此给自己立了5条人设，不，树设，从此变成了一棵红黑树。
 
 ## 13.2旋转
 
@@ -428,9 +428,15 @@ c. 性质1,3,5在case 2和case 3中依然保持。
 
 RBInsert中除了RBInsertFixUp的耗时为$O(lgn)$。在RBInsertFixUp中，仅当case1发生，while循环体才会重复执行。所以while循环可能被执行的总次数为$O(lgn)$ ，则RBInsert总耗时依然为$O(lgn)$ ，要注意RBInsertFixUp至多执行2次旋转操作。
 
+我加条个人评论：
+
+​		二叉搜索树BoBo 抱怨道：“How many troubles have you brought to our readers by your dumbass fixup operation? ”
+
+​		红黑树Aio答道：“Yes! ”
+
 ## 13.4 删除（遵循第4版英文版）
 
-与插入操作相比，删除操作要复杂不少，而不是原文中的稍微复杂一点, 尤其是后面出现的双色节点的操作，简直阴间，请保持平和心态阅读。
+与插入操作相比，删除操作要复杂不少，而不是原文中的稍微复杂一点, 尤其是后面出现的双色节点的操作，简直阴间，阅读时请保持平和心态。
 
 从一棵红黑树中删除节点的过程是基于12.3节的TreeDeletion过程而来的。首先和之前BST一样，来个红黑树定制版的RBTransplant:
 
@@ -507,7 +513,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
 6. 最后，如果y原本是黑色的，应该有1条或多条红黑性质被破坏，所以在第26行调用RBDeleteFixUp来恢复红黑性质。如果y原本是红色， 有移动前后依然保持红黑性质，原因如下：
 
-   1. 树中黑高没变。（第四版练习13.4-1，证明见附录【】）
+   1. 树中黑高没变。（第四版练习13.4-1，证明见附录【1】）
    2. 不存在两个相邻的红节点。因为y会占据原先z的位置，并着色为原先z的颜色，树中的y的新位置（原先z的位置）不存在相邻的红节点。另外，如果y不是z的孩子。y原先的右孩子节点x会占据y的位置，由于y为红色，所以x为黑色，这个替换操作不会导致出现两个红色相连的情况。
    3. y原本为红色，所以y不可能为根节点，根节点保持黑色。
 
@@ -516,6 +522,10 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
    1. 如果y最初为根节点，被删除后，y的一个红色节点成为新的根节点，那么违反性质2。
    2. 如果x和x的新的父节点都是红色，那么违反了性质4。
    3. 如果在y所在的简单路径上移动y导致先前包含y的任何简单路径上黑节点个数减少1个，违反原来的性质5。这个问题可以通过把y的黑色传递给x解决，这样x多了一个额外的黑色，如果x原来为黑色，变成双重黑色。如果x原来为红色，变成了红黑双色，这样虽然维护了性质5，但违反了性质1。所以我们应该通过修改颜色来解决这个问题（性质1）。
+
+   我追加条个人评论：
+
+   ​		“这里的第三个问题的处理中有一个令人费解的地方，也就是x上添加一重额外的黑色，其实在代码中完全没有体现这一阴间操作，所以这里x所谓的双重颜色也并不真实存在。但是我们假设x节点就是双色的，即x有一重额外的黑色，这样的就能不违反相对难修复的性质5了，作为相应的代价，相对容易修复的性质1被破坏。这里我个人认为就像皇帝的新衣的故事里一样，我们先认为皇帝穿了衣服来避免被砍头。但最后的最后，真相还是得戳破的，就像RBDeleteFixUp代码里的第62行就是来戳破真相的。”
 
    现在看RBDeleteFixUp如何恢复搜索树的红黑性质的。
 
@@ -587,17 +597,17 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
    }
    ```
 
-   正文这里优先证明RBDeleteFixUp如何恢复性质1，至于恢复性质2和性质4的证明请看附录里Exercise13.4-2和13.4-3的解答。
+   正文这里优先证明RBDeleteFixUp如何恢复性质1，至于恢复性质2和性质4的证明请看附录里Exercise13.4-2和13.4-3的解答【2】。
 
-    RBDeleteFixUp中第4-61行，中while循环的作用就是在树中移动额外的黑色直到以下情况停止：
+   RBDeleteFixUp中第4-61行，中while循环的作用就是在树中移动额外的黑色直到以下情况停止：
 
-   1. x指向一个红黑双色节点(我不懂)，此时在第62行，将 x 着为黑色。
+   1. x指向一个红黑双色节点，此时在第62行，将 x 着为黑色。
    2. x指向根节点，由于根节点已经为黑色，额外的黑色自动消失。
    3. 经过合适的旋转和着色操作，退出循环。
 
    和RBInsertFixUp类似，RBDeleteFixUp也处理了两种对称情形：第5~31行处理节点x为left child, 第33~60行处理x为right child情形。我们只关注第一种情况，即第4~31行。
 
-   在while循环中，x总指向非根双重黑色的节点（不太懂为啥是双重黑色，黑腿加黑丝？）, 在第4行判断x是否是left child，用w指向x的兄弟，因为x是双重黑节点以及性质5的限制，所以w不可能指向tNil。
+   在while循环中，x总指向非根双重黑色的节点, 在第4行判断x是否是left child，用w指向x的兄弟，因为x是双重黑节点以及性质5的限制，所以w不可能指向tNil。
 
    重新想到RBDelete中第17行RBTransplant中或第20行进行了配置x.parent（即使x是哨兵也要配置x.parent)。这是因为RBDeleteFixUp要多次访问x.parent。
 
@@ -617,7 +627,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    **case 1: x的兄弟w为红色**
 
-   case 1(c++代码第7~11行)，如图13.7(a)所示。因为w为红，w的孩子节点必为黑，所以可改变w和x.parent的颜色，然后对x.parent做一次左旋， 而不会新增违反任何红黑性质的情况（节点x的存在已经违反了性质1）【】。现在x的新的节点是旋转前w的某孩子节点，这样就能将情况1转变为情况2，情况3或情况4。
+   case 1(c++代码第7~11行)，如图13.7(a)所示。因为w为红，w的孩子节点必为黑，所以可改变w和x.parent的颜色，然后对x.parent做一次左旋， 而不会新增违反任何红黑性质的情况（节点x的存在已经违反了性质1）。现在x的新的节点是旋转前w的某孩子节点，这样就能将情况1转变为情况2，情况3或情况4。
 
    当w为黑色时，进入case 2, case 3或case 4, 这三个case由w的子节点颜色来区分。
 
@@ -627,7 +637,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    注意到，如果通过case 1进入case 2, 则新节点x是红黑色的，因为原来的x.parent是红色的（case(a)左侧的子树中节点B），因此新节点x的color属性值c为RED，并且在测试循环条件后循环终止。最后在第62行将新节点x着为（单一）黑色, 性质1得以维护，此树变为红黑树。小孩狂喜喊道：皇帝就是没穿衣服！
 
-   我加条评论：case 2 执行完后，性质4可能被破坏，但会迅速恢复：即新节点x是红黑色的，节点D为红色，则性质4被破坏，但因为新节点x的color属性值c为RED在测试下一次循环条件后循环终止，最终新节点x着为（单一）黑色，性质4得以恢复！
+   我加条评论：case 2 执行完后，性质4可能被破坏，但会迅速恢复：即新节点x是红黑色的，节点D为红色，则性质4被破坏，但因为新节点x的color属性值c为RED在测试下一次循环条件后循环终止，最终新节点x着为（单一）黑色，性质4得以恢复！小孩狂喜喊道：皇帝就是没穿衣服！
 
    **case 3: x的兄弟w为黑色的且w的左子节点是红色的，w的右子节点是黑色的**
 
@@ -648,11 +658,59 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    经过如上讨论，如果调用RBDeleteFixUp，RBDeleteFixUp运行时间为 $O(lgn)$ ，总运行时间依然为 $O(lgn)$ 。
 
+Tip:在进行相应的二叉树功能实现时，一定要尝试实现打印红黑树的功能，可以帮助我们debug和查看其他功能实现有没有问题。
 
+我的打印功能使用了二叉树的中序遍历，具体c++实现如下:
+
+```c++
+template <typename T>
+void RBTree<T>::Display(RBNode<T>* cur, int depth) {
+    if (cur->lc_ != tNil && cur->lc_ != nullptr) Display(cur->lc_, depth + 1);
+    for (int i = 0; i < depth; ++i) std::cout << "      ";
+    if (cur != root_) {
+        if (cur == cur->parent_->lc_) {
+            std::cout << "L----";
+        } else std::cout << "R----";
+    }
+    std::cout << "(" << cur->data_ << ")" <<"-"<< colorStr[cur->color_] << "\n";
+    if (cur->rc_ != tNil && cur->rc_ != nullptr) Display(cur->rc_, depth + 1);
+}
+template <typename T>
+void RBTree<T>::Display() {
+    if (root_ != tNil && root_ != nullptr) Display(root_);
+}
+```
+
+打印效果如下：
+
+```
+            L----(3)-RED       
+      L----(5)-BLK
+            R----(7)-RED       
+(8)-BLK
+                  L----(9)-RED 
+            L----(10)-BLK      
+                  R----(11)-RED
+      R----(12)-RED
+            R----(13)-BLK      
+                  R----(16)-RED  
+```
+
+整体的红黑树实现代码已放入附录【3】。
+
+读到这里的话，恭喜诸位强大的读者把这么难的红黑树给拿下了！实在太牛了！
+
+<img src="./jjba-golden-wind.gif" style="zoom:200%;" />
+
+
+
+那强大的你们点赞了吗？！关注了吗？！评论了吗？！谢谢！！
+
+![](./jiupingzhimaguan.png)
 
 ## 13.5 附录
 
-【】Exercise 13.4-1
+【1】Exercise 13.4-1
 
 Show that if node y in RBDELETE is red, then no black-heights change.
 
@@ -668,7 +726,7 @@ case 2 要被删除节点z有两个内部子节点且z的后继原本为红色�
 
 综上，如果 RBDelete 中y是红色的，那么没有黑高会发生变化。得证。
 
-【】Exercise 13.4-2
+【2】Exercise 13.4-2
 
 Argue that after RB-DELETE-FIXUP executes, the root of the tree must be black.  
 
@@ -678,7 +736,7 @@ Argue that after RB-DELETE-FIXUP executes, the root of the tree must be black.
 
 得证。
 
-【】Exercise 13.4-3 
+【2】Exercise 13.4-3 
 
 Argue that if in RB-DELETE both x and x.parent are red, then property 4 is restored by the call to RBDELETEFIXUP. 
 
@@ -692,21 +750,19 @@ Argue that if in RB-DELETE both x and x.parent are red, then property 4 is resto
 
 
 
-程序RBTree的整体c++实现
+【3】程序RBTree的整体c++实现
 
 ```c++
 // author: Claude Du
 #include "TreeNode.h"
 #include <iostream>
 #include <vector>
-#include <queue>
-#include <stack>
 #include <algorithm>
 #include <cmath>
 #include <string>
 using std::vector;
-using std::queue;
-using std::stack;
+
+typedef enum {RB_RED, RB_BLACK} RBColor;
 
 template <typename T>
 struct RBNode {
@@ -726,8 +782,11 @@ private:
     RBNode<T>* root_;
     RBNode<T>* tNil;
     const vector<std::string> colorStr{"RED", "BLK"};
-    void InitializeNullNode(RBNode<T>* node, RBNode<T>* parent);
+    void LeftRotate(RBNode<T>* x);
+    void RightRotate(RBNode<T>* x);
     void Display(RBNode<T>* cur, int depth = 0);
+    void RBInsertFixUp(RBNode<T>* z);
+    void RBDeleteFixUp(RBNode<T>* z);
 public:
     RBTree() {
         tNil = new RBNode<T>();
@@ -743,7 +802,9 @@ public:
             ++toBeDel;
         };
         TravelPreRecursive(root_, del);
-        std::cout << "Here is the total num of Deleted nodes : " << toBeDel << std::endl;
+        delete tNil;
+        tNil = nullptr;
+        std::cout << "Here is the total num of Deleted internal nodes : " << toBeDel << std::endl;
         
     }
     // 4.1 recursive version of PreOrder traversal
@@ -755,31 +816,19 @@ public:
         TravelPreRecursive(node->rc_, visit); 
     }
     RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
-    void LeftRotate(RBNode<T>* x);
-    void RightRotate(RBNode<T>* x);
+
     // insertion
     RBNode<T>* RBInsert(T const& val);
-    void RBInsertFixUp(RBNode<T>* z);
+
     // deletion
     void RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex);
     // bool RBDeletion(T const& val);
     void RBDeletion(RBNode<T>* z);
-    void RBDeleteFixUp(RBNode<T>* z);
     template <typename VST>
     void travelPre(VST& visit) { if (root_) root_->travelPre(visit); }
     // debug
     void Display();
-
-
 };
-template <typename T>
-void RBTree<T>::InitializeNullNode(RBNode<T>* node, RBNode<T>* parent) {
-    node->data_ = 0;
-    node->parent_ = parent;
-    node->lc_ = nullptr;
-    node->rc_ = nullptr;
-    node->color_ = RB_BLACK;
-}
 template <typename T>
 RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
     while (cur->lc_ != tNil) {
@@ -994,10 +1043,8 @@ template <typename T>
 void RBTree<T>::Display() {
     if (root_ != tNil && root_ != nullptr) Display(root_);
 }
-
 int main()
 {
-
     RBTree<int> rbTree;
     RBNode<int>* node8 = rbTree.RBInsert(8);
     RBNode<int>* node12 = rbTree.RBInsert(12);
@@ -1013,24 +1060,30 @@ int main()
     rbTree.RBDeletion(node12);
     std::cout << "\n";
     std::cout << "\n";
+    std::cout << "The node with value 12 has been deleted" << "\n";
+    rbTree.Display();
+    rbTree.RBDeletion(node8);
+    std::cout << "\n";
+    std::cout << "\n";
+    std::cout << "The node with value 8 has been deleted" << "\n";
     rbTree.Display();
 }
-#endif /*BinarySearchTree_h*/
 ```
 
 运行结果：
 
 ```
-            L----(3)-RED
+
+            L----(3)-RED       
       L----(5)-BLK
-            R----(7)-RED
+            R----(7)-RED       
 (8)-BLK
-                  L----(9)-RED
-            L----(10)-BLK
+                  L----(9)-RED 
+            L----(10)-BLK      
                   R----(11)-RED
       R----(12)-RED
-            R----(13)-BLK
-                  R----(16)-RED
+            R----(13)-BLK      
+                  R----(16)-RED        
 
 
 The node with value 12 has been deleted
@@ -1043,7 +1096,18 @@ The node with value 12 has been deleted
                   R----(11)-RED
       R----(13)-RED
             R----(16)-BLK
+
+
+The node with value 8 has been deleted
+            L----(3)-RED
+      L----(5)-BLK
+            R----(7)-RED
+(9)-BLK
+            L----(10)-BLK
+                  R----(11)-RED
+      R----(13)-RED
+            R----(16)-BLK
 Hi, my job is done.
-Here is the total num of Deleted nodes : 9
+Here is the total num of Deleted internal nodes : 8
 ```
 
