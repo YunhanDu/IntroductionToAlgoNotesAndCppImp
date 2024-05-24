@@ -2,19 +2,33 @@
 
 作者：Claude Du
 
-本文主要内容来源于算法导论2022年第四版英文版与17年第三版中文版，13.3节和13.4节基本就是对英文原文进行了翻译，并自行修改了原书中部分描述性的错误，以及自行大量补充了原书中本要求读者自行求证的内容，这可能是您在互联网上能够找到的第一篇如此诚意满满的，基于算法导论英文原书，手把手式的中文红黑树C++实现教程资料。（抱歉，本人师从Lebron，最近在钻研goat定制化奥义---疯狂加限定定语）
+本文主要内容来源于算法导论2022年第四版英文版与17年第三版中文版，13.3节和13.4节除了对英文原文进行了翻译，还自行修改了原书中部分描述性的错误，以及自行大量补充了原书中本要求读者自行求证的内容。这很可能是您在互联网上能够找到的第一篇如此诚意满满的，基于算法导论英文原书，手把手式的中文红黑树C++实现教程资料。（抱歉，本人师从Lebron，最近在钻研goat定制化奥义---疯狂加限定定语）
 
-红黑树在算法中属于比较难的一个topic, 写这篇文章难免会各种各样的犯错，如果大家发现本文中的错误, 欢迎在评论中指出。如果觉得本文有用的话，还是希望大家能点赞，收藏，转发与订阅的方式来支持一下。
+红黑树在算法中属于比较难的一个topic, 写这篇文章也充满了挑战与困难，也难免会各种各样的犯错，如果大家发现本文中的错误, 欢迎在评论中指出。如果觉得本文有用的话，还是希望大家能点赞，收藏，转发与订阅的方式来支持一下。
 
-前提警告：这是篇充斥着算法与代码细节的万字长文干货（正文加附录）！！
+前提警告：这是篇充斥着算法与代码细节的万字长文干货！！
 
-现在想想似乎应该把这个篇章分成上中下三篇笔记，来方便大家阅读。
+现在想想要不要把这个篇章分成上中下三篇笔记，来方便大家阅读呢？
+
+
 
 但是我拒绝。
 
 <img src="./%E6%8B%92%E7%B5%95-talking.gif" style="zoom: 200%;" />
 
-以下是各个小篇章的阅读建议：
+主要感觉代码还是整体的，所以不想拆开。
+
+以下是各个小篇章简介与阅读建议：
+
+13.1节给红黑树下了定义并提供了红黑树的大体代码框架。
+
+13.2节讲解了红黑树中核心指针修改操作——旋转与其代码实现细节。
+
+这两章节可以在1天读完并检验旋转操作。
+
+13.3节讲解红黑树的插入操作与代码实现细节，难度较大，建议单独花一天阅读。
+
+13.4节讲解红黑树的删除操作与代码实现细节，难度比13.3节大，建议单独花1~3天阅读。
 
 ## 13.1红黑树性质
 
@@ -35,6 +49,8 @@ struct RBNode {
 };
 ```
 
+
+
 通过对任何一条从根到叶子的简单路径上各个节点的颜色进行约束，红黑树确保没有一条路径会比其他路径长出2倍。因而可以近似认为是平衡的。
 
 一棵红黑树满足下面红黑性质的二叉树：
@@ -47,7 +63,7 @@ struct RBNode {
 
 图13-1(a)显示了一个红黑树的例子。
 
-
+![](./RedBlackTree.PNG)
 
 为了便于处理红黑树代码中的边界条件，使用一个哨兵tNil来代表Nil（Nil在二叉搜索树的c++实现里，我直接用nullptr表示）。对于1棵红黑树，哨兵tNil是1个与树中普通节点有相同属性的对象。它的color属性为Black, 而其他属性parent, left child, right child 可以设置成任意值，我个人在c++实现里为了避免歧义，初始化tNil时将其指针属性全设置成nullptr, 后续tNil的parent属性是可以设置成其他值的。
 
@@ -66,21 +82,118 @@ public:
         tNil->color_ = RB_BLACK;
         root_ = tNil;
     }
+    ~RBTree() { 
+        std::cout << "Hi, my job is done. " << "\n";
+        int toBeDel = 0;
+        auto del =[&toBeDel](RBNode<T>* cur) {
+            delete cur;
+            cur = nullptr;
+            ++toBeDel;
+        };
+        TravelPreRecursive(root_, del);
+        delete tNil;
+        tNil = nullptr;
+        std::cout << "Here is the total num of Deleted internal nodes : " << toBeDel << std::endl;
+        
+    }
 	// other public attributes and function
 };
 ```
 
-采用哨兵思想后，如图13-1(b)所示，所有指向Nil的指针都用指向唯一一个哨兵tNil的指针替换掉。（真是个节省空间的小妙招！！我们用一个tNil来代表所有的Nil: 叶节点和根节点的parent）
+采用哨兵思想后，如上图13-1(b)所示，所有指向Nil的指针都用指向唯一一个哨兵tNil的指针替换掉。（真是个节省空间的小妙招！我们用一个tNil来代表所有的Nil: 叶节点和根节点的parent）
 
+我们通常只把注意力放在红黑树的内部节点上，因为它们存储了关键字的值。在本章的后面，所画的红黑树都忽略叶节点，如上图13-1(c)所示。
 
+红黑树中从某个节点x出发（不含该节点）到达一个叶节点的任意一条简单路径上的黑色节点个数称为该节点的黑高（Black-Height），记为$bh(x)$ 。根据性质5的限制，这个黑高的概念是非常明确清晰的。
 
-我们通常只把注意力放在红黑树的内部节点上，因为它们存储了关键字的值。在本章的后面，所画的红黑树都忽略叶节点，如图13-1(c)所示。
+下面的引理说明了为何红黑树是一棵好的好黑树。
 
-红黑树中从某个节点x出发（不含该节点）到达一个叶节点的任意一条简单路径上的黑色节点个数称为该节点的黑高（Black-Height），记为$bh(x)$ 。根据性质5，黑高的概念是明确定义的，因为从该节点出发的所有下降到其叶节点的简单路径的黑节点个数都相同。于是定义红黑树的黑高为其根节点的黑高。
+**引理 13.1**
 
+一棵有n个内部节点的红黑树的高度至多为 $2lg(n+1)$ 。
 
+**证明：**先证明以任一节点x为根的子树中至少含有$2^{bh(x)} - 1$ 个内部节点。为了证明这点，对x的高度进行数学归纳法分析：
 
+如果x的高度为0，那x必然为一个叶节点（tNil), 则 以x为根节点的子树只能有0个内部节点（此时，只能有0个内部节点，无论至多还是至少都成立），则以x为根节点的子树至少包含$2^{bh(x)}-1=0$ 个内部节点，上面的命题此时成立。
 
+假设x的黑高为k，那么以任一节点x为根的子树中至少含有$2^{k} - 1=2^{bh(x)} - 1$ 个内部节点成立。
+
+那么当x的黑高为k+1的子节点时， 由于性质5的限制，x必有两个子节点，每个子节点都有黑高k+1或黑高k, 分别取决于子节点自身是红色还是黑色。这里每个子节点的黑高至少为k, 于是以x为根的子树至少包含$(2^{k} -1)+(2^{k} -1)+1 = (2^{k+1} -1) = 2^{bh(x)} - 1$ 个内部节点，命题得证。
+
+为完成引理的证明，设h为树高，根据性质4，从根到叶节点（不包括根节点）的任何一条简单路径上都至少有一半的节点为黑色。因此根的黑高至少为$h/2$ ；于是有
+$$
+n \geq 2^{h/2} - 1
+$$
+把上等式稍作变形，得到 $h \leq 2lg(n+1)$ , 引理得证。
+
+由该引理可知，动态集合操作Search, Minimum, Maximum, Successor和Predecessor可在红黑树上在 $O(lg(n))$ 时间内执行（见12章二叉搜索书，该章笔记与c++实现预计下周完成）。虽然当给定一棵红黑树作为输入时，第12章的TreeInsert和TreeDelete的运行时间为 $O(lg(n))$，但是这两个操作算法不适用于红黑树，因为它们并不能保证被这些操作修改后的二叉搜索树仍是红黑树，红黑树自己的插入与删除操作会在13.3和13.4章节介绍。
+
+红黑树的代码主题框架如下：
+
+```c++
+template <typename T> class RBTree {
+private:
+    RBNode<T>* root_;
+    RBNode<T>* tNil;
+    const vector<std::string> colorStr{"RED", "BLK"};
+    void LeftRotate(RBNode<T>* x);
+    void RightRotate(RBNode<T>* x);
+    
+    void Display(RBNode<T>* cur, int depth = 0);
+    void RBInsertFixUp(RBNode<T>* z);
+    void RBDeleteFixUp(RBNode<T>* z);
+public:
+    RBTree() {
+        tNil = new RBNode<T>();
+        tNil->color_ = RB_BLACK;
+        root_ = tNil;
+    }
+    ~RBTree() { 
+        std::cout << "Hi, my job is done. " << "\n";
+        int toBeDel = 0;
+        auto del =[&toBeDel](RBNode<T>* cur) {
+            delete cur;
+            cur = nullptr;
+            ++toBeDel;
+        };
+        TravelPreRecursive(root_, del);
+        delete tNil;
+        tNil = nullptr;
+        std::cout << "Here is the total num of Deleted internal nodes : " << toBeDel << std::endl;
+        
+    }
+    // 4.1 recursive version of PreOrder traversal
+    template <typename VST>
+    void TravelPreRecursive(RBNode<T>* node, VST& visit) {
+        if (node == tNil || node == nullptr) return;
+        visit(node);  
+        TravelPreRecursive(node->lc_, visit);
+        TravelPreRecursive(node->rc_, visit); 
+    }
+    RBNode<T>* TreeMinimum(RBNode<T>* cur) const;
+
+    // insertion
+    RBNode<T>* RBInsert(T const& val);
+
+    // deletion
+    void RBTransplant(RBNode<T>* toBeSubstituted, RBNode<T>* vertex);
+    void RBDeletion(RBNode<T>* z);
+    template <typename VST>
+
+    // debug
+    void Display();
+};
+```
+
+我加条评论：
+
+​		二叉搜素树Aio对二叉搜索树BoBo说道：“BoBo, BST的能力真是有限的呀，在我短暂的树生里学到，BST越是频繁修改自己，就约会在预料之外的事态上		失足变成链表，要成为超越BST的存在呀！”
+
+​		二叉搜索树BoBo不解：“什么，你在说什么？”
+
+​		二叉搜素树Aio掏出黑色面具（正面黑色，反面红色）戴在自己的头节点上，大喊：“我不做BST了，BoBo!”
+
+​       二叉搜素树Aio给自己立了5条人设，不，树设，从此变成了一棵红黑树。
 
 ## 13.2旋转
 
@@ -317,7 +430,7 @@ RBInsert中除了RBInsertFixUp的耗时为$O(lgn)$。在RBInsertFixUp中，仅�
 
 ## 13.4 删除（遵循第4版英文版）
 
-与插入操作相比，删除操作要复杂不少，而不是原文中的稍微复杂一点。
+与插入操作相比，删除操作要复杂不少，而不是原文中的稍微复杂一点, 尤其是后面出现的双色节点的操作，简直阴间，请保持平和心态阅读。
 
 从一棵红黑树中删除节点的过程是基于12.3节的TreeDeletion过程而来的。首先和之前BST一样，来个红黑树定制版的RBTransplant:
 
@@ -406,7 +519,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
    现在看RBDeleteFixUp如何恢复搜索树的红黑性质的。
 
-   其c++实现如下（建议结合下面正文描述来看代码实现）：
+   其c++实现如下（建议一定要结合下面正文描述来看代码实现）：
 
    ```c++
    template <typename T>
@@ -539,7 +652,7 @@ RBNode<T>* RBTree<T>::TreeMinimum(RBNode<T>* cur) const {
 
 ## 13.5 附录
 
-Exercise 13.4-1
+【】Exercise 13.4-1
 
 Show that if node y in RBDELETE is red, then no black-heights change.
 
@@ -555,7 +668,7 @@ case 2 要被删除节点z有两个内部子节点且z的后继原本为红色�
 
 综上，如果 RBDelete 中y是红色的，那么没有黑高会发生变化。得证。
 
-Exercise 13.4-2
+【】Exercise 13.4-2
 
 Argue that after RB-DELETE-FIXUP executes, the root of the tree must be black.  
 
@@ -565,7 +678,7 @@ Argue that after RB-DELETE-FIXUP executes, the root of the tree must be black.
 
 得证。
 
-Exercise 13.4-3 
+【】Exercise 13.4-3 
 
 Argue that if in RB-DELETE both x and x.parent are red, then property 4 is restored by the call to RBDELETEFIXUP. 
 
@@ -575,7 +688,7 @@ Argue that if in RB-DELETE both x and x.parent are red, then property 4 is resto
 
 调用RBDeleteFixUp，由于x为红色，不会进入循环，直接通过RBDeleteFixUp第62行修正为黑色，x的兄弟也为黑色，性质4得以恢复，得证。
 
-我的评论：这里讨论的是在RBDeleteFixUp执行前性质4被破坏的情形，但在RBDeleteFixUp执行过程中case2也有可能造成性质4被破坏，但是会立马恢复，具体的讨论见13.4 case 2情形中的“我加条评论”。
+我的评论：这里讨论的仅仅是在RBDeleteFixUp执行前性质4被破坏的情形，但在RBDeleteFixUp执行过程中case2也有可能造成性质4被破坏，但是会立马恢复，具体的讨论见13.4 case 2情形中的“我加条评论”。
 
 
 
