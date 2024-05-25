@@ -1,24 +1,44 @@
-算法导论ch12二叉搜索树与其数据结构的c++实现
+# 算法导论ch12二叉搜索树笔记与其数据结构的c++实现
 
-12.1 什么是二叉搜索树(BST)
+本篇笔记主要来源于算法导论第三版中文版与算法导论第四版英文版，c++代码实现有参考数据结构（c++语言版）第三版，如有错误请务必指出。
+
+搜索树数据结构支持许多动态集合操作：SEARCH, MINIMUM, MAXIMUM, PREDECESSOR, SUCCESSOR, INSERT和DELETE等。因此，我们使用一棵搜索树既可以作为一个字典又可以作为一个优先队列。
+
+二叉搜索树上的基本操作所花费的时间与这棵树的高度成正比。对于有n节点的完全二叉树，这些操作的最坏运行时间为 $\Theta(lgn)$ 。但对于有n节点的线性链形的二叉树，这些操作的最坏运行时间为 $\Theta(n)$ 。
+
+实际上，我们经常使用的是二叉搜索树的变种，因为它们可以保证基本操作有较好的最坏情况性能。比如13章的红黑树，（相应笔记与c++实现链接https://3ms.huawei.com/km/blogs/details/15343190?l=zh-cn），18章的B树，特别适用于二级（磁盘）存储器上的数据库维护。
+
+
+
+
+
+## 12.1 什么是二叉搜索树(BST)
+
+顾名思义，一棵二叉搜索树是以一棵二叉树来组织的，如图12-1所示，这样一棵树可以使用一个链表数据结构来表示，其中每个节点就是一个对象。除了key_和卫星
 
 12.2 查询BST（读操作）
 
-BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor  和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 $O(h)$ 时间内执行完每个操作。
+BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor 和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 �(ℎ) 时间内执行完每个操作。
 
 查找--TreeSearch
 
 最大关键字元素--TreeMaximum和最小关键字元素--TreeMinimum
 
- 后继--TreeSuccessor  和 前驱--TreePredecessor
+后继--TreeSuccessor 和 前驱--TreePredecessor
 
 ## 12.3 插入和删除（写操作）
 
+
+
 ### 插入--TreeInsert
+
+
 
 插入
 
 ### 删除--TreeDeletion
+
+
 
 从一颗BST中删除一个节点z（假设删除该节点前，BST一定储存了该节点）的整个策略可以分为如下三种基本情况：
 
@@ -42,7 +62,7 @@ d, 否则，y不是z的right child（如图12.4 d)，在这种情况下，先用
 
 图12.4如下：
 
-![](D:\算法学习\IntroToAlgoandCppImplementation\IntroductionToAlgoNotesAndCppImp-main\12_4.png)
+![img](./treedeletion.PNG)
 
 为了在二叉树内移动子树，定义一个子过程Transplant, 它用一棵子树A(代码中vertex) 替换一棵子树B(代码中toBeSubstituted)并成为B(代码中toBeSubstituted)在其parent原来相应的child节点，其c++实现如下：
 
@@ -87,9 +107,7 @@ template <typename T> void BST<T>::TreeDeletion2(TreeNode<T>* z) {
 }
 ```
 
-c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。
-
-12.4 随机构建二叉搜索树（第四版英文版已删除，不感兴趣直接跳过）
+c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。【见附录】
 
 
 
