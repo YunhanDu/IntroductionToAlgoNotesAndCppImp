@@ -1,6 +1,6 @@
-# 算法导论ch12二叉搜索树笔记与其数据结构的c++实现
+# 算法导论ch12二叉搜索树笔记与其数据结构c++实现
 
-本篇笔记主要来源于算法导论第三版中文版与算法导论第四版英文版，c++代码实现有参考数据结构（c++语言版）第三版，如有错误请务必指出。
+本篇笔记主要来源于算法导论第三版中文版与算法导论第四版英文版，c++代码实现有参考邓俊辉的数据结构（c++语言版）第三版，如有错误请务必指出。
 
 搜索树数据结构支持许多动态集合操作：SEARCH, MINIMUM, MAXIMUM, PREDECESSOR, SUCCESSOR, INSERT和DELETE等。因此，我们使用一棵搜索树既可以作为一个字典又可以作为一个优先队列。
 
@@ -10,15 +10,160 @@
 
 
 
-
-
 ## 12.1 什么是二叉搜索树(BST)
 
-顾名思义，一棵二叉搜索树是以一棵二叉树来组织的，如图12-1所示，这样一棵树可以使用一个链表数据结构来表示，其中每个节点就是一个对象。除了key_和卫星
+顾名思义，一棵二叉搜索树是以一棵二叉树来组织的，如图12-1所示，这样一棵树可以使用一个链表数据结构来表示，其中每个节点就是一个对象。除了key_和卫星数据，每个节点有属性left child, right child和parent。（我在c++实现里参考了数据结构（c++语言版）额外加了一个属性，height），如果某child节点和parent节点不存在，则其相应的属性值为NIL。（c++实现中我直接用nullptr表示NIL）根节点是树中唯一父指针为NIL的节点。
 
-12.2 查询BST（读操作）
+![](./BinarySearchTree.PNG)
 
-BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor 和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 �(ℎ) 时间内执行完每个操作。
+二叉搜索树的节点c++实现如下:
+
+```c++
+#define stature(node) ((node) ? (node)->height_ : -1)
+
+
+template<typename T> struct TreeNode {
+    T data_;
+    TreeNode<T>* parent_;
+    TreeNode<T>* lc_;
+    TreeNode<T>* rc_;
+    int height_;
+    TreeNode() : parent_(nullptr), lc_(nullptr), rc_(nullptr), height_(0) {}
+    TreeNode(T data, TreeNode<T>* parent = nullptr, TreeNode<T>* lc = nullptr,
+             TreeNode<T>* rc = nullptr, int h = 0) : 
+             data_(data), parent_(parent), lc_(lc), rc_(rc), height_(0) {}
+    TreeNode<T>* insertAsLC(T const& lcVal);
+    TreeNode<T>* insertAsRC(T const& lcVal);
+    // Traversal Method
+    template <typename VST> void travelLevel(VST& visit) { TravelLevel(this, visit); }
+    template <typename VST> void travelPre(VST& visit) { TravelPreIterative(this, visit); }
+    template <typename VST> void travelIn(VST& visit) { TravelInIterative(this, visit); }
+    template <typename VST> void travelPost(VST& visit) { TravelPostRecursive(this, visit); }
+};
+```
+
+在图12-1(a)中，树根的关键字为6，在其左子树中有关键字2,5和5，它们均不大于6；而在其右子树中有关键字7和8，它们均不小于6。这条性质对树中的每个节点都成立：在一棵二叉搜索树中，任一节点r的左（右）子树中，所有的节点（若存在）的关键字均不大于(不小于)r的关键字。
+
+该条性质允许我们通过简单的递归算法来按照关键字顺序访问二叉搜索树中的节点，这种算法称为中序遍历, 这样命名的原因是访问的子树根节点的顺序在其左子树后，其右子树之前。我们可以看一下TravelInorderRecursive的c++实现:
+
+```c++
+/**
+ * Traverses the given binary tree in in-order fashion using recursion.
+ *
+ * @tparam T The type of data stored in the tree nodes.
+ * @tparam VST The type of the visitor object.
+ * @param node The root node of the tree to be traversed.
+ * @param visit The visitor object used to perform an operation on each visited node.
+ */
+template <typename T, typename VST>
+void TravelInorderRecursive(TreeNode<T>* node, VST& visit) {
+    if (!node) return;
+    TravelPostRecursive(node->lc_, visit);
+    visit(node); 
+    TravelPostRecursive(node->rc_, visit);       
+}
+```
+
+作为一个例子，对于图12-1中的2棵二叉搜索树，中序遍历访问次序均为2， 5， 5，6，7，8。
+
+额外提一嘴，我们要实现打印二叉搜索树整体结构的话，也可以借助二叉搜索树的中序遍历思想，详见12.2节的读操作。
+
+TravelINorder的迭代版本，与先序遍历，后序遍历，层序遍历的实现请见二叉搜索树的整体实现代码【】。
+
+遍历一棵有n个节点的二叉搜索树要耗费$\Theta(n)$, 因为初次调用之后，对于树中的每个节点该遍历过程恰好自己要调用2次：1次是它的left child, 另一次是它的right child。下面的定理给出了执行一次中序遍历耗费线性时间的一个证明。
+
+**定理12.1** 如果x是一棵有n个节点子树的根，那么调用TravelInorderRecursive需要 $\Theta(n)$ 时间。
+
+ **证明：** 当TravelInorderRecursive作用于一棵有n个节点子树的根时，用 $T(n)$ 表示需要的时间。由于TravelInorderRecursive要访问这棵子树的全部n个节点，所以有$T(n) = \Omega(n)$ 。下面要证明 $T(n) = O(n)$  。
+
+由于对于一棵空树，TravelInorderRecursive需要耗费一个小的常数时间c（c > 0, 因为要测试 node是否是NIL）, 有 $T(0) = c $ 。
+
+对 $n > 0$ ，假设TravelInorderRecursive 作用在一个节点x上，x节点左子树有k个节点且其右子树有 n-k-1个节点，则执行TravelInorderRecursive的时间由$T(n)\leq T(k) + T(n-k-1)+d$ ，其中常数 $d>c>0$ , d为visit(x)的耗时。此式反应了执行TravelInorderRecursive的一个时间上界，其中不包括递归调用所花的时间。
+
+使用替换法和数学归纳法，通过证明 $T(n) \leq (c+d)n + c$ ，可以证得 $T(n) = O(n)$ 。对于$ n = 0$ ，我们有 $(c+d)0+c = T(0)$ , $T(0)\leq c$ 成立， 对于 $n = 1$ , 我们有 $2c + d = T(1)$ , $T(1)\leq (c+d)*1 +c$ 成立。
+
+假设  $T(j) \leq (c+d)*(j+1)$ 对于 $j = k$ 与 $j = n -k - 1$ 成立。
+
+我们有：
+$$
+\begin{aligned}
+T(n) &\leq  T(k) + T(n-k-1)+d \\
+& \leq ((c+d)k +c) +((c+d)(n-k-1) +c) + d \\ 
+& = ((c+d)n -(c+d)+2c + d \\ 
+& = ((c+d)n  + c \\ 
+\end{aligned}
+$$
+$T(j) \leq (c+d)*(j+1)$对于 $j=n$ 成立，定理得证。
+
+对于12.2节的所涉及的所有读操作与12.3节的所有写操作，我们的二叉搜索数的数据结构c++实现框架如下：
+
+```c++
+template <typename T> class BST {
+protected:
+    int size_; TreeNode<T>* root_; // size_ means # of nodes
+    virtual int UpdateHeight(TreeNode<T>* node);
+    void UpdateHeightAbove(TreeNode<T>* node);
+    void Display(TreeNode<T>* cur, int depth = 0);
+    void Transplant(TreeNode<T>* toBeSubstituted, TreeNode<T>* vertex);
+public:
+    BST() : size_(0), root_(nullptr) {}    
+    ~BST() { 
+        if (size_ > 0) {
+            std::cout << "Hi, my job is done. " << "\n";
+            std::cout << Remove(root_);
+        }
+    }
+    int size() const { return size_; }
+    int height() const { return stature(root_); }
+    bool empty() const { return root_ == nullptr; }
+    TreeNode<T>* root() const { return root_; }
+    TreeNode<T>* TreeMinimum() const {
+        if (root_ == nullptr) return root_; 
+        return TreeMinimum(root_); 
+    }
+    // read operations:
+    TreeNode<T>* TreeMinimum(TreeNode<T>* cur) const;
+    TreeNode<T>* TreeMaximum() const {
+        if (root_ == nullptr) return root_; 
+        return TreeMaximum(root_); 
+    }
+    TreeNode<T>* TreeMaximum(TreeNode<T>* cur) const;
+    TreeNode<T>* TreeSuccessor(TreeNode<T>* cur) const;
+    TreeNode<T>* TreePredecessor(TreeNode<T>* cur) const;
+    // search
+    TreeNode<T>*& Search(T const& keyVal);
+    TreeNode<T>*& SearchRecursive(TreeNode<T>*& cur, T const& keyVal);
+    TreeNode<T>* SearchIterative(TreeNode<T>* cur, T const& keyVal);
+    void LeftRotate(TreeNode<T>* x);
+    void RightRotate(TreeNode<T>* x);
+    // insertion
+    TreeNode<T>* TreeInsert(T const& val);
+    // deletion
+    bool TreeDeletion(T const& val);
+    void TreeDeletion(TreeNode<T>*& cur);
+    void TreeDeletion2(TreeNode<T>* cur);
+    int Remove(TreeNode<T>* x);
+    // Traversal
+    template <typename VST>
+    void travLevel(VST& visit) { if (root_) root_->travLevel(visit); }
+    template <typename VST>
+    void travelPre(VST& visit) { if (root_) root_->travelPre(visit); }
+    template <typename VST>
+    void travelIn(VST& visit) { if (root_) root_->travelIn(visit); }
+    template <typename VST>
+    void travelPost(VST& visit) { if (root_) root_->travelPost(visit); }
+    
+    void Display();
+}; 
+```
+
+
+
+
+
+## 12.2 查询BST（读操作）
+
+BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor 和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 $O(h)$时间内执行完每个操作。
 
 查找--TreeSearch
 
@@ -107,9 +252,9 @@ template <typename T> void BST<T>::TreeDeletion2(TreeNode<T>* z) {
 }
 ```
 
-c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。【见附录】
+c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。
 
-
+13.4 附录：
 
 BinarySearchTree.h
 
