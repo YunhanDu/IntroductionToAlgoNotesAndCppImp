@@ -1,22 +1,24 @@
 # 算法导论ch12二叉搜索树笔记与其数据结构c++实现
 
-本篇笔记主要来源于算法导论第三版中文版与算法导论第四版英文版，c++代码实现有参考邓俊辉的数据结构（c++语言版）第三版，如有错误请务必指出。
+作者：Claude Du
+
+本篇笔记主要来源于算法导论第三版中文版与算法导论第四版英文版，c++代码实现有参考邓俊辉的数据结构（c++语言版）第三版，其中我自行修改了算法导论中部分描述型的错误，如果还有错误, 请各位务必指出。
 
 搜索树数据结构支持许多动态集合操作：SEARCH, MINIMUM, MAXIMUM, PREDECESSOR, SUCCESSOR, INSERT和DELETE等。因此，我们使用一棵搜索树既可以作为一个字典又可以作为一个优先队列。
 
 二叉搜索树上的基本操作所花费的时间与这棵树的高度成正比。对于有n节点的完全二叉树，这些操作的最坏运行时间为 $\Theta(lgn)$ 。但对于有n节点的线性链形的二叉树，这些操作的最坏运行时间为 $\Theta(n)$ 。
 
-实际上，我们经常使用的是二叉搜索树的变种，因为它们可以保证基本操作有较好的最坏情况性能。比如13章的红黑树，（相应笔记与c++实现链接https://3ms.huawei.com/km/blogs/details/15343190?l=zh-cn），18章的B树，特别适用于二级（磁盘）存储器上的数据库维护。
+实际上，我们经常使用的是二叉搜索树的变种，因为它们可以保证基本操作有较好的最坏情况性能。比如13章的红黑树，（红黑树笔记与相应c++实现链接https://3ms.huawei.com/km/blogs/details/15343190?l=zh-cn），18章的B树，特别适用于二级（磁盘）存储器上的数据库维护。
 
-
+下文中，我将二叉搜索树简称称为BST, 即Binary Search Tree的缩写。
 
 ## 12.1 什么是二叉搜索树(BST)
 
-顾名思义，一棵二叉搜索树是以一棵二叉树来组织的，如图12-1所示，这样一棵树可以使用一个链表数据结构来表示，其中每个节点就是一个对象。除了key_和卫星数据，每个节点有属性left child, right child和parent。（我在c++实现里参考了数据结构（c++语言版）额外加了一个属性，height），如果某child节点和parent节点不存在，则其相应的属性值为NIL。（c++实现中我直接用nullptr表示NIL）根节点是树中唯一父指针为NIL的节点。
+顾名思义，一棵BST是以一棵二叉树来组织的，如图12-1所示，这样一棵树可以使用一个链表数据结构来表示，其中每个节点就是一个对象。除了key_和卫星数据，每个节点有属性left child, right child和parent。（我在c++实现里参考了数据结构（c++语言版）额外加了一个属性，height），如果某child节点和parent节点不存在，则其相应的属性值为NIL。（c++实现中我直接用nullptr表示NIL）根节点是树中唯一父指针为NIL的节点。
 
 ![](./BinarySearchTree.PNG)
 
-二叉搜索树的节点c++实现如下:
+BST的节点c++实现如下:
 
 ```c++
 #define stature(node) ((node) ? (node)->height_ : -1)
@@ -42,9 +44,9 @@ template<typename T> struct TreeNode {
 };
 ```
 
-在图12-1(a)中，树根的关键字为6，在其左子树中有关键字2,5和5，它们均不大于6；而在其右子树中有关键字7和8，它们均不小于6。这条性质对树中的每个节点都成立：在一棵二叉搜索树中，任一节点r的左（右）子树中，所有的节点（若存在）的关键字均不大于(不小于)r的关键字。
+在图12-1(a)中，树根的关键字为6，在其左子树中有关键字2,5和5，它们均不大于6；而在其右子树中有关键字7和8，它们均不小于6。这条性质对树中的每个节点都成立：**在一棵BST中，任一节点r的左（右）子树中，所有的节点（若存在）的关键字均不大于(不小于)r的关键字。**
 
-该条性质允许我们通过简单的递归算法来按照关键字顺序访问二叉搜索树中的节点，这种算法称为中序遍历, 这样命名的原因是访问的子树根节点的顺序在其左子树后，其右子树之前。我们可以看一下TravelInorderRecursive的c++实现:
+该条性质允许我们通过简单的递归算法来按照关键字顺序访问BST中的节点，这种算法称为中序遍历, 这样命名的原因是访问的子树根节点的顺序在其左子树后，其右子树之前。我们可以看一下TravelInorderRecursive的c++实现:
 
 ```c++
 /**
@@ -64,13 +66,13 @@ void TravelInorderRecursive(TreeNode<T>* node, VST& visit) {
 }
 ```
 
-作为一个例子，对于图12-1中的2棵二叉搜索树，中序遍历访问次序均为2， 5， 5，6，7，8。
+作为一个例子，对于图12-1中的2棵BST，中序遍历访问次序均为2， 5， 5，6，7，8。
 
-额外提一嘴，我们要实现打印二叉搜索树整体结构的话，也可以借助二叉搜索树的中序遍历思想，详见12.2节的读操作。
+额外提一嘴，我们要实现打印BST整体结构的话，也可以借助二叉树的中序遍历思想，详见12.2节的读操作。
 
-TravelINorder的迭代版本，与先序遍历，后序遍历，层序遍历的实现请见二叉搜索树的整体实现代码【】。
+TravelINorder的迭代版本，与先序遍历，后序遍历，层序遍历的实现请见BST的整体实现代码【】。
 
-遍历一棵有n个节点的二叉搜索树要耗费$\Theta(n)$, 因为初次调用之后，对于树中的每个节点该遍历过程恰好自己要调用2次：1次是它的left child, 另一次是它的right child。下面的定理给出了执行一次中序遍历耗费线性时间的一个证明。
+遍历一棵有n个节点的BST要耗费$\Theta(n)$, 因为初次调用之后，对于树中的每个节点该遍历过程恰好自己要调用2次：1次是它的left child, 另一次是它的right child。下面的定理给出了执行一次中序遍历耗费线性时间的一个证明。
 
 **定理12.1** 如果x是一棵有n个节点子树的根，那么调用TravelInorderRecursive需要 $\Theta(n)$ 时间。
 
@@ -82,7 +84,7 @@ TravelINorder的迭代版本，与先序遍历，后序遍历，层序遍历的�
 
 使用替换法和数学归纳法，通过证明 $T(n) \leq (c+d)n + c$ ，可以证得 $T(n) = O(n)$ 。对于$ n = 0$ ，我们有 $(c+d)0+c = T(0)$ , $T(0)\leq c$ 成立， 对于 $n = 1$ , 我们有 $2c + d = T(1)$ , $T(1)\leq (c+d)*1 +c$ 成立。
 
-假设  $T(j) \leq (c+d)*(j+1)$ 对于 $j = k$ 与 $j = n -k - 1$ 成立。
+假设  $T(j) \leq (c+d)*(j+1)$ 对于 $j = k$ 与 $j = n -k - 1$ 成立, 其中 $j = k \geq 0$ ， $j = n -k - 1\geq 0$ 。
 
 我们有：
 $$
@@ -93,11 +95,12 @@ T(n) &\leq  T(k) + T(n-k-1)+d \\
 & = ((c+d)n  + c \\ 
 \end{aligned}
 $$
-$T(j) \leq (c+d)*(j+1)$对于 $j=n$ 成立，定理得证。
+$T(j) \leq (c+d)*j + c$对于 $j=n$ 成立，定理得证。
 
-对于12.2节的所涉及的所有读操作与12.3节的所有写操作，我们的二叉搜索数的数据结构c++实现框架如下：
+对于12.2节的所涉及的所有读操作与12.3节的所有写操作，我们的BST的数据结构c++实现框架如下：
 
 ```c++
+// author: Claude Du
 template <typename T> class BST {
 protected:
     int size_; TreeNode<T>* root_; // size_ means # of nodes
@@ -117,11 +120,12 @@ public:
     int height() const { return stature(root_); }
     bool empty() const { return root_ == nullptr; }
     TreeNode<T>* root() const { return root_; }
+    // read operations:
     TreeNode<T>* TreeMinimum() const {
         if (root_ == nullptr) return root_; 
         return TreeMinimum(root_); 
     }
-    // read operations:
+
     TreeNode<T>* TreeMinimum(TreeNode<T>* cur) const;
     TreeNode<T>* TreeMaximum() const {
         if (root_ == nullptr) return root_; 
@@ -131,11 +135,9 @@ public:
     TreeNode<T>* TreeSuccessor(TreeNode<T>* cur) const;
     TreeNode<T>* TreePredecessor(TreeNode<T>* cur) const;
     // search
-    TreeNode<T>*& Search(T const& keyVal);
-    TreeNode<T>*& SearchRecursive(TreeNode<T>*& cur, T const& keyVal);
-    TreeNode<T>* SearchIterative(TreeNode<T>* cur, T const& keyVal);
-    void LeftRotate(TreeNode<T>* x);
-    void RightRotate(TreeNode<T>* x);
+    TreeNode<T>*& TreeSearch(T const& keyVal);
+    TreeNode<T>*& TreeSearchRecursive(TreeNode<T>*& cur, T const& keyVal);
+    TreeNode<T>* TreeSearchIterative(TreeNode<T>* cur, T const& keyVal);
     // insertion
     TreeNode<T>* TreeInsert(T const& val);
     // deletion
@@ -165,11 +167,127 @@ public:
 
 BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMaximum， 最小关键字元素--TreeMinimum， 后继--TreeSuccessor 和 前驱--TreePredecessor。本节会讨论这些操作与c++实现细节，并说明在任何高度为h的BST上，如何在 $O(h)$时间内执行完每个操作。
 
-查找--TreeSearch
+这些操作相对简单一些，原书讲解的很棒，我这里不会再重复叙述每个操作的具体细节。
 
-最大关键字元素--TreeMaximum和最小关键字元素--TreeMinimum
+**查找--TreeSearch**
 
-后继--TreeSuccessor 和 前驱--TreePredecessor
+我们使用TreeSearch过程来在一棵BST中查找一个有给定关键字的节点。输入一个指向某子树根节点的x和一个关键字k，TreeSearch返回一个指向关键字为k的节点的指针，否则返回NIL。
+
+利用BST的关键性质，TreeSearch递归版c++实现如下：
+
+```c++
+template <typename T> TreeNode<T>*& BST<T>::TreeSearchRecursive(TreeNode<T>*& cur, T const& keyVal) {
+    if (cur == nullptr || keyVal == cur->data_) return cur;
+    if (keyVal < cur->data_)
+        return TreeSearchRecursive(cur->lc_, keyVal);
+    return TreeSearchRecursive(cur->rc_, keyVal);      
+}
+```
+
+我们可以用while循环来展开递归，用一种迭代方式来重写这个这个过程，对于大多数计算机，迭代版效率更好，（减少了函数栈开销）TreeSearch迭代版c++实现如下：
+
+```c++
+template <typename T> TreeNode<T>* BST<T>::TreeSearchIterative(TreeNode<T>* cur, T const& keyVal) {
+    while (cur != nullptr && keyVal != cur->data_) {
+        if (keyVal < cur->data_) cur = cur->lc_;
+        else cur = cur->rc_;
+    }
+    return cur;
+}
+```
+
+无论是哪个版本，TreeSearch的时间复杂度为$O(h)$ 。
+
+**最大关键字元素--TreeMaximum和最小关键字元素--TreeMinimum**
+
+这两个过程的c++实现如下：
+
+```c++
+template <typename T> TreeNode<T>* BST<T>::TreeMinimum(TreeNode<T>* cur) const {
+    while (cur->lc_ != nullptr) {
+        cur = cur->lc_;
+    } 
+    return cur;  
+}
+template <typename T> TreeNode<T>* BST<T>::TreeMaximum(TreeNode<T>* cur) const {
+    while (cur->rc_ != nullptr) {
+        cur = cur->rc_;
+    } 
+    return cur;  
+}
+```
+
+TreeMinimum和TreeMaximum的时间复杂度为$O(h)$ 。
+
+**后继--TreeSuccessor 和 前驱--TreePredecessor**
+
+TreeSuccessor与TreePredecessor的c++实现如下：
+
+```c++
+template <typename T> TreeNode<T>* BST<T>::TreeSuccessor(TreeNode<T>* cur) const {
+    if (cur->rc_ != nullptr) return TreeMinimum(cur->rc_);
+    TreeNode<T>* y = cur->parent_;
+    while (y != nullptr && cur == y.rc_) {
+        cur = y;
+        y = y->parent_;
+    }
+    return y;
+}
+template <typename T> TreeNode<T>* BST<T>::TreePredecessor(TreeNode<T>* cur) const {
+    if (cur->lc_ != nullptr) return TreeMaximum(cur->lc_);
+    TreeNode<T>* y = cur->parent_;
+    while (y != nullptr && cur == y.lc_) {
+        cur = y;
+        y = y->parent_;
+    }
+    return y;
+}
+```
+
+TreeSuccessor 和 TreePredecessor的时间复杂度为$O(h)$ 。
+
+还有一个额外的可以打印整个BST的读操作Display, 使用中序遍历的方式进行节点访问与打印节点值与节点对应的高度，其c++实现如下：
+
+```c++
+template <typename T>
+void BST<T>::Display(TreeNode<T>* cur, int depth) {
+    if (cur->lc_) Display(cur->lc_, depth + 1);
+
+    for (int i=0; i < depth; i++)
+        printf("     ");
+
+    if (cur->parent_ != nullptr) {
+        if ( cur == cur->parent_->lc_) {
+            printf("L----");
+        } else printf("R----");
+    }
+    std::cout << "[" << cur->data_ << "] - (" << cur->height_ << ")" << "\n";
+    if (cur->rc_) Display(cur->rc_, depth + 1);    
+}
+template <typename T> void BST<T>::Display() {
+    std::cout << "\n";
+    if (root_ != nullptr) Display(root_);
+    else std::cout << "Empty";
+    std::cout << "\n";
+}
+```
+
+打印效果如下：
+
+```bash
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (3)
+               L----[9] - (0)
+          L----[10] - (1)
+               R----[11] - (0)
+     R----[12] - (2)
+          R----[13] - (1)
+               R----[16] - (0)
+```
+
+
 
 ## 12.3 插入和删除（写操作）
 
@@ -177,9 +295,37 @@ BST支持这些查询操作：查找--TreeSearch，最大关键字元素--TreeMa
 
 ### 插入--TreeInsert
 
+向一棵BST中插入一个关键字为val的新节点，其过程TreeInsert c++实现如下：
 
+```c++
+template <typename T> TreeNode<T>* BST<T>::TreeInsert(T const& val) {
+    TreeNode<T>* targetPosiParent = nullptr;
+    TreeNode<T>* curPosi = root_;
+    while (curPosi != nullptr) {
+        targetPosiParent = curPosi;
+        if (val < curPosi->data_) curPosi = curPosi->lc_;
+        else curPosi = curPosi->rc_;
+    }
+    TreeNode<T>* newNode = new TreeNode<T>(val, targetPosiParent);
+    ++size_;
+    // if tree is empty
+    if (targetPosiParent == nullptr) {
+        root_ = newNode;   
+        return newNode;
+    }
+    if (val < targetPosiParent->data_) {
+       targetPosiParent->lc_ = newNode; 
+    } else targetPosiParent->rc_ = newNode;
+    UpdateHeightAbove(newNode);
+    return newNode;
+}
+```
 
-插入
+图12-3显示了TreeInsert是如何工作的。
+
+![](./TreeInsert.PNG)
+
+TreeMaximum的时间复杂度为$O(h)$ ，其中h为树的高度。
 
 ### 删除--TreeDeletion
 
@@ -254,7 +400,11 @@ template <typename T> void BST<T>::TreeDeletion2(TreeNode<T>* z) {
 
 c++实现中的target节点是用来维护删除过程中树中节点高度，非删除过程中的核心代码，可以不用给予过多关注。
 
-13.4 附录：
+TreeDeketion2的时间复杂度为$O(h)$ ，其中h为树的高度。
+
+## 13.4 附录
+
+【1】二叉搜索树的整体c++代码实现如下：
 
 BinarySearchTree.h
 
@@ -512,7 +662,7 @@ void BST<T>::Display(TreeNode<T>* cur, int depth) {
 
 TreeNode.h
 
-```
+```c++
 #ifndef TreeNode_h
 #define TreeNode_h
 #include <iostream>
@@ -609,7 +759,7 @@ void TravelPostRecursive(TreeNode<T>* node, VST& visit) {
 
 TreeNode.cpp
 
-```
+```c++
 // author Yunhan Du
 #include "TreeNode.h"
 #include <vector>
@@ -633,7 +783,7 @@ template class TreeNode<int>;
 
 main.cpp
 
-```
+```c++
 // author: Claude Du
 #include "TreeNode.h"
 #include "BinarySearchTree.h"
@@ -688,5 +838,89 @@ int main()
     bst.Display();
     std::cout << "TreeMaximum: " << bst.TreeMaximum()->data_ << "\n";
 }
+```
+
+在terminal中执行：g++ hello.cpp TreeNode.cpp -g
+
+执行结果如下：
+
+```bash
+8 5 11 3 7 12 
+3 5 7 8 9 10 11 12 13 16
+10
+The root is 8
+THe found node is 7
+
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (3)
+               L----[9] - (0)
+          L----[10] - (1)
+               R----[11] - (0)
+     R----[12] - (2)
+          R----[13] - (1)
+               R----[16] - (0)
+
+
+               L----[3] - (0)
+          L----[5] - (1)
+               R----[7] - (0)
+     L----[8] - (3)
+               L----[9] - (0)
+          R----[10] - (1)
+               R----[11] - (0)
+[12] - (2)
+     R----[13] - (1)
+          R----[16] - (0)
+
+
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (3)
+               L----[9] - (0)
+          L----[10] - (1)
+               R----[11] - (0)
+     R----[12] - (2)
+          R----[13] - (1)
+               R----[16] - (0)
+
+9
+
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (3)
+               L----[9] - (0)
+          L----[11] - (1)
+     R----[12] - (2)
+          R----[13] - (1)
+               R----[16] - (0)
+
+8
+
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (3)
+          L----[11] - (0)
+     R----[12] - (2)
+          R----[13] - (1)
+               R----[16] - (0)
+
+7
+
+          L----[3] - (0)
+     L----[5] - (1)
+          R----[7] - (0)
+[8] - (2)
+          L----[11] - (0)
+     R----[12] - (1)
+          R----[13] - (0)
+
+TreeMaximum: 13
+Hi, my job is done.
+7
 ```
 
