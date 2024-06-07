@@ -441,3 +441,404 @@ PS:
 哈哈哈，如果未来算法导论的后续版本加了AVL树，到时还可以对比本文和算导AVL树章节的相似度，想想就High到不行！
 
 ![](./%E7%9C%9F%E6%98%AFHigh%E5%88%B0%E4%B8%8D%E8%A1%8C.gif)
+
+## 5 附录
+
+AVLTree.h
+
+```c++
+#ifndef AVLTree_h
+#define AVLTree_h
+// author: Claude Du
+#include "TreeNode.h" 
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <stack>
+#include <algorithm>
+#include <cmath>
+using std::vector;
+using std::queue;
+using std::stack;
+template <typename T>
+inline bool Balanced(const TreeNode<T>* x) { return stature(x->lc_) == stature(x->rc_); }
+template <typename T>
+inline int BalFac(const TreeNode<T>* x) {
+    return (stature(x->lc_) - stature(x->rc_));
+}
+template <typename T>
+inline bool AvlBalanced(const TreeNode<T>* x) {
+    return (-2 < BalFac(x)) && (BalFac(x) < 2);
+}
+
+template <typename T>
+inline TreeNode<T>* TallerChild(const TreeNode<T>* x) {
+    if (stature(x->lc_) > stature(x->rc_)) return x->lc_;
+    if (stature(x->lc_) < stature(x->rc_)) return x->rc_;
+    return (x-> parent_ == nullptr) || (x == x->parent_->lc_) ? x->lc_ : x->rc_;   
+}
+template <typename T> class AVLTree {
+protected:
+    int size_; TreeNode<T>* root_; // size_ means # of nodes
+    virtual int UpdateHeight(TreeNode<T>* node);
+    void UpdateHeightAbove(TreeNode<T>* node);
+    void Display(TreeNode<T>* cur, int depth = 0);
+    void Transplant(TreeNode<T>* toBeSuAVLTreeituted, TreeNode<T>* vertex);
+public:
+    AVLTree() : size_(0), root_(nullptr) {}    
+    ~AVLTree() { 
+        if (size_ > 0) {
+            std::cout << "Hi, my job is done. " << "\n";
+            std::cout << Remove(root_);
+        }
+    }
+    int size() const { return size_; }
+    int height() const { return stature(root_); }
+    bool empty() const { return root_ == nullptr; }
+    TreeNode<T>* root() const { return root_; }
+    TreeNode<T>* TreeMinimum() const {
+        if (root_ == nullptr) return root_; 
+        return TreeMinimum(root_); 
+    }
+    // read operations:
+    TreeNode<T>* TreeMinimum(TreeNode<T>* cur) const;
+    TreeNode<T>* TreeMaximum() const {
+        if (root_ == nullptr) return root_; 
+        return TreeMaximum(root_); 
+    }
+    TreeNode<T>* TreeMaximum(TreeNode<T>* cur) const;
+    TreeNode<T>* TreeSuccessor(TreeNode<T>* cur) const;
+    TreeNode<T>* TreePredecessor(TreeNode<T>* cur) const;
+    // search
+    TreeNode<T>*& TreeSearch(T const& keyVal);
+    TreeNode<T>*& TreeSearchRecursive(TreeNode<T>*& cur, T const& keyVal);
+    TreeNode<T>* TreeSearchIterative(TreeNode<T>* cur, T const& keyVal);
+    void LeftRotate(TreeNode<T>* x);
+    void RightRotate(TreeNode<T>* x);
+    // insertion
+    TreeNode<T>* TreeInsert(T const& val);
+    // deletion
+    bool TreeDeletion(T const& val);
+    void TreeDeletion(TreeNode<T>*& cur);
+    void TreeDeletion2(TreeNode<T>* cur);
+    int Remove(TreeNode<T>* x);
+    void ReBalance(TreeNode<T>* x);
+    void PosiBalance(TreeNode<T>* x);
+    // Traversal
+    template <typename VST>
+    void travLevel(VST& visit) { if (root_) root_->travLevel(visit); }
+    template <typename VST>
+    void travelPre(VST& visit) { if (root_) root_->travelPre(visit); }
+    template <typename VST>
+    void travelIn(VST& visit) { if (root_) root_->travelIn(visit); }
+    template <typename VST>
+    void travelPost(VST& visit) { if (root_) root_->travelPost(visit); }
+    
+    void Display();
+}; 
+
+template <typename T> int AVLTree<T>::UpdateHeight(TreeNode<T>* node) {
+    node->height_ = 1 + std::max(stature(node->lc_), stature(node->rc_));
+    return node->height_;
+}
+template <typename T> void AVLTree<T>::UpdateHeightAbove(TreeNode<T>* node) {
+    while (node) {
+        UpdateHeight(node);
+        node = node->parent_;
+    }
+}
+
+template <typename T> TreeNode<T>* AVLTree<T>::TreeMinimum(TreeNode<T>* cur) const {
+    while (cur->lc_ != nullptr) {
+        cur = cur->lc_;
+    } 
+    return cur;  
+}
+template <typename T> TreeNode<T>* AVLTree<T>::TreeMaximum(TreeNode<T>* cur) const {
+    while (cur->rc_ != nullptr) {
+        cur = cur->rc_;
+    } 
+    return cur;  
+}
+template <typename T> TreeNode<T>* AVLTree<T>::TreeSuccessor(TreeNode<T>* cur) const {
+    if (cur->rc_ != nullptr) return TreeMinimum(cur->rc_);
+    TreeNode<T>* y = cur->parent_;
+    while (y != nullptr && cur == y.rc_) {
+        cur = y;
+        y = y->parent_;
+    }
+    return y;
+}
+template <typename T> TreeNode<T>* AVLTree<T>::TreePredecessor(TreeNode<T>* cur) const {
+    if (cur->lc_ != nullptr) return TreeMaximum(cur->lc_);
+    TreeNode<T>* y = cur->parent_;
+    while (y != nullptr && cur == y.lc_) {
+        cur = y;
+        y = y->parent_;
+    }
+    return y;
+}
+template <typename T> TreeNode<T>*& AVLTree<T>::TreeSearch(T const& keyVal) {
+    return TreeSearchRecursive(root_, keyVal);    
+}
+template <typename T> TreeNode<T>*& AVLTree<T>::TreeSearchRecursive(TreeNode<T>*& cur, T const& keyVal) {
+    if (cur == nullptr || keyVal == cur->data_) return cur;
+    if (keyVal < cur->data_)
+        return TreeSearchRecursive(cur->lc_, keyVal);
+    return TreeSearchRecursive(cur->rc_, keyVal);      
+}
+template <typename T> TreeNode<T>* AVLTree<T>::TreeSearchIterative(TreeNode<T>* cur, T const& keyVal) {
+    while (cur != nullptr && keyVal != cur->data_) {
+        if (keyVal < cur->data_) cur = cur->lc_;
+        else cur = cur->rc_;
+    }
+    return cur;
+}
+
+template <typename T> TreeNode<T>* AVLTree<T>::TreeInsert(T const& val) {
+    TreeNode<T>* targetPosiParent = nullptr;
+    TreeNode<T>* curPosi = root_;
+    while (curPosi != nullptr) {
+        targetPosiParent = curPosi;
+        if (val < curPosi->data_) curPosi = curPosi->lc_;
+        else curPosi = curPosi->rc_;
+    }
+    TreeNode<T>* newNode = new TreeNode<T>(val, targetPosiParent);
+    ++size_;
+    // if tree is empty
+    if (targetPosiParent == nullptr) {
+        root_ = newNode;   
+        return newNode;
+    }
+    if (val < targetPosiParent->data_) {
+       targetPosiParent->lc_ = newNode; 
+    } else targetPosiParent->rc_ = newNode;
+    UpdateHeightAbove(newNode);
+    ReBalance(newNode);
+    return newNode;
+}
+template <typename T> bool AVLTree<T>::TreeDeletion(T const& val) {
+    TreeNode<T>*& cur = TreeSearch(val);
+    if (cur == nullptr) return false;
+    TreeDeletion2(cur); 
+    return true;  
+}
+// Intro To Algo's Method
+template <typename T> void AVLTree<T>::Transplant(TreeNode<T>* toBeSuAVLTreeituted, TreeNode<T>* vertex) {
+    if (toBeSuAVLTreeituted->parent_ == nullptr) root_ = vertex;
+    else if (toBeSuAVLTreeituted == toBeSuAVLTreeituted->parent_->lc_) {
+        toBeSuAVLTreeituted->parent_->lc_ = vertex;
+    } else toBeSuAVLTreeituted->parent_->rc_ = vertex;
+    if (vertex != nullptr) vertex->parent_ = toBeSuAVLTreeituted->parent_;
+}
+template <typename T> void AVLTree<T>::TreeDeletion2(TreeNode<T>* cur) {
+    TreeNode<T>* target = cur->parent_; // find the lowest node whose height may need to updated
+    if (cur->lc_ == nullptr) {
+        Transplant(cur, cur->rc_); // replace cur by its right child
+        
+    } else if (cur->rc_ == nullptr) {
+        Transplant(cur, cur->lc_); // replace cur by its left child    
+    } else {
+        TreeNode<T>* y = TreeMinimum(cur->rc_);
+        if (y->parent_ != cur) { // is y farther down the tree?
+            Transplant(y, y->rc_); // replace y by its right child
+            y->rc_ = cur->rc_; // z's right child becomes
+            y->rc_->parent_ = y; // y's right child
+        }
+        Transplant(cur, y); // replace cur by its successor y
+        y->lc_ = cur->lc_; // and give z's left child to y
+        y->lc_->parent_ = y; // which had no left child
+        target = (y->rc_ == nullptr) ? y : y-> rc_;     
+    }
+    UpdateHeightAbove(target);
+    --size_;
+}
+// 邓俊辉的取巧办法，我并不喜欢,有点取巧走后门的感觉
+template <typename T> void AVLTree<T>::TreeDeletion(TreeNode<T>*& cur) {
+    TreeNode<T>* toBeDeleted = cur; // 
+    TreeNode<T>* succ = nullptr;
+    if (cur->lc_ == nullptr) {
+        cur = cur->rc_;
+        succ = cur;
+    } else if (cur->rc_ == nullptr) {
+        cur = cur->lc_;
+        succ = cur;
+    } else {
+        toBeDeleted = TreeMinimum(toBeDeleted->rc_);
+        std::swap(cur->data_, toBeDeleted->data_);
+        TreeNode<T>* u = toBeDeleted->parent_;
+        succ = toBeDeleted->rc_;
+        if (u == cur) u->rc_ = succ;
+        else u->lc_ = succ;
+    }
+    if (succ != nullptr) succ->parent_ = toBeDeleted->parent_;
+    UpdateHeightAbove(toBeDeleted->parent_);
+    --size_;
+    delete toBeDeleted;
+    toBeDeleted = nullptr;    
+}
+template <typename T> void AVLTree<T>::LeftRotate(TreeNode<T>* x) {
+    TreeNode<T>* y = x->rc_;
+    if (y == nullptr) return;
+    x->rc_ = y->lc_;
+    if (y->lc_ != nullptr) y->lc_->parent_ = x;
+    y->parent_ = x->parent_;
+    if (x->parent_ == nullptr) root_ = y;
+    else if (x == x->parent_->lc_) x->parent_->lc_ = y;
+    else x->parent_->rc_ = y;
+    x->parent_ = y;
+    y->lc_ = x;    
+    UpdateHeightAbove(x);
+}
+template <typename T> void AVLTree<T>::RightRotate(TreeNode<T>* x) {
+    TreeNode<T>* y = x->lc_;
+    if (y == nullptr) return;
+    x->lc_ = y->rc_;
+    if (y->rc_ != nullptr) y->rc_->parent_ = x;
+    y->parent_ = x->parent_;
+    if (x->parent_ == nullptr) root_ = y;
+    else if (x == x->parent_->lc_) x->parent_->lc_ = y;
+    else x->parent_->rc_ = y;
+    x->parent_ = y;
+    y->rc_ = x; 
+    UpdateHeightAbove(x);   
+}
+template <typename T> void AVLTree<T>::PosiBalance(TreeNode<T>* g) {
+    TreeNode<T>* p = TallerChild(g);
+    TreeNode<T>* v = TallerChild(p);
+    if ( p == g->rc_) {
+        if (v == p->rc_) {
+            LeftRotate(g);  
+        } else {
+            RightRotate(p);
+            LeftRotate(g);
+        }
+    } else {
+        if (v == p->lc_) {
+            RightRotate(g);  
+        } else {
+            LeftRotate(p);
+            RightRotate(g);
+        }        
+    }
+}
+template <typename T> void AVLTree<T>::ReBalance(TreeNode<T>* x) {
+    TreeNode<T>* g = x->parent_;
+    while (g != nullptr) {
+        if (!AvlBalanced(g)) {
+            PosiBalance(g);
+        } else {
+            g = g->parent_;
+        }
+    }
+}
+template <typename T> int AVLTree<T>::Remove(TreeNode<T>* x) {
+    // cut the pointer from parent node
+    TreeNode<T>* &pointerOfParent = (x->parent_ == nullptr) ? root_ : ((x == x->parent_->lc_) ? x->parent_->lc_ : x->parent_->rc_);
+    pointerOfParent = nullptr;
+    // Remove all the nodes of this subtree
+    // use Preorder way to remove all the nodes.
+    UpdateHeightAbove(x->parent_);
+    int toBeDel = 0;
+    auto del =[&toBeDel](TreeNode<T>* cur) {
+        delete cur;
+        cur = nullptr;
+        ++toBeDel;
+    };
+    x->travelPre(del);
+    size_ -= toBeDel;
+    return toBeDel;
+}
+template <typename T> void AVLTree<T>::Display() {
+    std::cout << "\n";
+    if (root_ != nullptr) Display(root_);
+    else std::cout << "Empty";
+    std::cout << "\n";
+}
+template <typename T>
+void AVLTree<T>::Display(TreeNode<T>* cur, int depth) {
+    if (cur->lc_) Display(cur->lc_, depth + 1);
+
+    for (int i=0; i < depth; i++)
+        printf("     ");
+
+    if (cur->parent_ != nullptr) {
+        if ( cur == cur->parent_->lc_) {
+            printf("L----");
+        } else printf("R----");
+    }
+    std::cout << "[" << cur->data_ << "] - (" << cur->height_ << ")" << "\n";
+    if (cur->rc_) Display(cur->rc_, depth + 1);    
+}
+
+#endif /*AVLTree_h*/
+```
+
+main.cpp
+
+```c++
+// author: Claude Du
+#include "TreeNode.h"
+#include "AVLTree.h"
+#include "BlackRedTree.h"
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <stack>
+#include <cmath>
+
+int main()
+{
+    std::vector<int> record;
+    auto visit = [&](TreeNode<int>* node) {
+        record.emplace_back(node->data_);
+        std::cout << node->data_ << " ";
+    };
+
+    AVLTree<int> bst;
+    bst.TreeInsert(11);
+    
+    bst.TreeInsert(7);
+    TreeNode<int>* node8 = bst.TreeInsert(8);
+    bst.TreeInsert(9);
+    bst.Display();
+    std::cout << "A node with val 10 will be inserted. which satisfies case 2, right-left." << "\n";
+    bst.TreeInsert(10);
+    bst.Display();
+    std::cout << "A node with val 12 will be inserted. " << "\n";
+    TreeNode<int>* node12 = bst.TreeInsert(12);
+    
+    bst.Display();
+    std::cout << "A node with val 13 will be inserted. which satisfies case 1, right-right." << "\n";
+    bst.TreeInsert(13);
+
+    
+    bst.Display();
+    bst.TreeInsert(5);
+    bst.TreeInsert(3);
+    
+    bst.Display();
+    
+    
+    bst.TreeInsert(16);
+    bst.travelIn(visit);
+    record.clear();
+    std::cout << "\n";
+    std::cout << bst.size() << "\n";
+    // TreeNode<int>* node7 = bst.TreeSearchIterative(node8, 7);
+    std::cout << "The root is "<< bst.root()->data_ << "\n";
+    // std::cout <<"THe found node is "<< node7->data_ << "\n";
+    
+    bst.TreeDeletion(10);
+    std::cout << bst.size() << "\n";
+    bst.Display();
+    bst.TreeDeletion(9);
+    std::cout << bst.size() << "\n";
+    bst.Display();
+    bst.TreeDeletion(16);
+    std::cout << bst.size() << "\n";
+    bst.Display();
+    std::cout << "TreeMaximum: " << bst.TreeMaximum()->data_ << "\n";
+}
+```
+
