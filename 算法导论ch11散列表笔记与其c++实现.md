@@ -100,12 +100,34 @@ Hashmap.h
 #define HashMap_h
 #include "BitMap.h"
 #include "Dictionary.h"
+#include <string>
 int primeNLT ( int c, int n, const char* file ) { //根据file文件中的记录，在[c, n)内取最小的素数
    Bitmap B ( file, n ); //file已经按位图格式，记录了n以内的所有素数，因此只要
    while ( c < n ) //从c开始，逐位地
       if ( B.DirectAddressSearch( c ) ) c++; //测试，即可
       else return c; //返回首个发现的素数
    return c; //若没有这样的素数，返回n（实用中不能如此简化处理）
+}
+static size_t hashCode(const char c) { return (size_t) c; }
+static size_t hashCode(const int k) { return (size_t) k; }
+static size_t hashCode(const long long i) { return (size_t) ((size_t)(i >> 32) + (int) i ); }
+static size_t hashCode(const char s[]) {
+    int h = 0;
+    for (size_t n = strlen(s), i = 0; i < n; ++i) {
+        // left cycle shift by 5 digits
+        h = (h << 5) | (h >> 27); 
+        h += (int) s[i];
+    }
+    return ( size_t ) h;
+}
+static size_t hashCode(std::string& s) {
+    int h = 0;
+    for (size_t n = s.size(), i = 0; i < n; ++i) {
+        // left cycle shift by 5 digits
+        h = (h << 5) | (h >> 27); 
+        h += (int) s[i];
+    }
+    return ( size_t ) h;
 }
 template <typename K, typename V> class HashMap<K, V>: public Dictionary<K,V> {
 private:
@@ -114,7 +136,8 @@ private:
     int N; //  key Number
     Bitmap* lazyRemoval;
     #define lazilyRemoved(x) (lazilyRemoved->DirectAddressSearch(x))
-    #define lazilyRemoved(x) (lazilyRemoved->DirectAddressInsert(x))
+    #define markAsRemoved(x) (lazilyRemoved->DirectAddressInsert(x))
+    // we may need mark
 protected:
     int Probe4Hit (const K& key);
     int Probe4Free (const K& key);
@@ -126,24 +149,51 @@ public:
     bool insert (K key, V val);
     V* get(K key);
     bool Remove(K key);
+    size_t Hash(const K key);
 };
-template <typename K, typename V> HashMap::HashMap(int c) {
+template <typename K, typename V> HashMap<K, V>::HashMap(int c) {
     M = primeNLT(c, 1048576, "_input/prime-1048576-bitmap.txt");
     N = 0;
     ht = new Entry<K, V>*[M];
     memset(ht, 0, sizeof(Entry<K, V>*) *M);
     lazyRemoval = new Bitmap(M);
 } 
-template <typename K, typename V> HashMap::~HashMap(int c) {
+template <typename K, typename V> HashMap<K, V>::~HashMap(int c) {
     for (int i = 0; i < M; ++i) {
-        if (ht[i]) delete [] ht[i]; ht[i] = nullptr;
+        if (ht[i]) delete ht[i]; ht[i] = nullptr;
     }
     delete [] ht; 
     ht = nullptr;
     delete lazyRemoval;
     lazyRemoval = nullptr;
 } 
+template <typename K, typename V> size_t HashMap<K, V>::Hash(const K key) {
+    size_t hashcode = hashCode(key);
+    return (4*hashCode + 3) % M;
+}
+// linear probing
+template <typename K, typename V> size_t HashMap<K, V>::probe4Hit(const K& key) {
+    int rank = Hash(key);
+    // case 1: the target key has not been found in a nonempty bucket
+    // case 2: the bucket is empty and it has been marked as lazily removed
+    while ((ht[rank] && (key != ht[rank]->key_)) || (!ht[rank] && lazilyRemoved(rank))) {
+        rank = (rank + 1) % M;
+    }
+    return rank;
+}
+template <typename K, typename V> V* HashMap<K, V>::get(K key) {
+    int rank = probe4Hit(key);
+    return ht[rank] ? &(ht[rank]->value_) : nullptr;
+}
 
+template <typename K, typename V> bool HashMap<K, V>::remove(K key) {
+    int rank = probe4Hit(key);
+    if (!ht[r]) return false;
+    delete ht[r]; ht[r] = nullptr; 
+    markAsRemoved(r);
+    --N;
+    return true;
+}
 #endif /*HashMap_h*/
 ```
 
