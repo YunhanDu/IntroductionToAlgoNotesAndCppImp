@@ -152,7 +152,7 @@ public:
     size_t Hash(const K key);
 };
 template <typename K, typename V> HashMap<K, V>::HashMap(int c) {
-    M = primeNLT(c, 1048576, "_input/prime-1048576-bitmap.txt");
+    M = primeNLT(c, 1048576, "prime-bitmap.txt");
     N = 0;
     ht = new Entry<K, V>*[M];
     memset(ht, 0, sizeof(Entry<K, V>*) *M);
@@ -172,7 +172,7 @@ template <typename K, typename V> size_t HashMap<K, V>::Hash(const K key) {
     return (4*hashCode + 3) % M;
 }
 // linear probing
-template <typename K, typename V> size_t HashMap<K, V>::probe4Hit(const K& key) {
+template <typename K, typename V> size_t HashMap<K, V>::Probe4Hit(const K& key) {
     int rank = Hash(key);
     // case 1: the target key has not been found in a nonempty bucket
     // case 2: the bucket is empty and it has been marked as lazily removed
@@ -187,12 +187,48 @@ template <typename K, typename V> V* HashMap<K, V>::get(K key) {
 }
 
 template <typename K, typename V> bool HashMap<K, V>::remove(K key) {
-    int rank = probe4Hit(key);
+    int rank = Probe4Hit(key);
     if (!ht[r]) return false;
-    delete ht[r]; ht[r] = nullptr; 
+    // release the entry element relating to this key word 
+    delete ht[r]; 
+    ht[r] = nullptr; 
     markAsRemoved(r);
     --N;
     return true;
+}
+template <typename K, typename V> size_t HashMap<K, V>::Probe4Free(const K& key) {
+    int rank = Hash(key);
+    while ( ht[rank] ) {
+        rank = (rank + 1) % M;
+    }
+    return rank;
+}
+template <typename K, typename V> bool HashMape<K, V>::insert(K key, V val) {
+    // 雷同元素不必重复插入
+    if (ht[Probe4Hit(key)]) return false;
+    int rank = Probe4Free(key);
+    ht[rank] = new Entry<K, v>(key, val);
+    ++N;
+    if (N * 2 > M) {
+        Rehash();
+    }
+    return true;
+}
+template <typename K, typename V> void HashMape<K, V>::Rehash() {
+    int old_capacity = M;
+    Entry<K, V>** old_ht = ht;
+    M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
+    N = 0; 
+    ht = new Entry<K, V>*[M]; memset(ht, 0, sizeof(Entry<K, V>*) * M );
+    delete lazyRemoval; 
+    lazyRemoval = new Bitmap(M);
+    for (int i = 0; i < old_capacity; ++i) {
+        if (old_hit[i] ) {
+            insert(old_hit[i]->key_, old_hit[i]->val_);
+        }
+    }
+    delete [] old_ht;
+    old_ht = nullptr;
 }
 #endif /*HashMap_h*/
 ```
