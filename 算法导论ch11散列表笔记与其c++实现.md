@@ -1,6 +1,8 @@
-算法导论ch11散列表笔记与其c++实现
+# 哈希表的c++相应实现
 
-BitMap的实现
+本周借鉴邓俊辉的《数据结构（c++语言版）》，实现了一把简易的哈希表，算法导论第11章哈希表的笔记预计下周写好。
+
+此哈希表实现使用了开放寻址策略（open addressing）中最基本的方法--线性试探法，以及通过使用位图来实现开放寻址策略的懒惰删除过程，详细解析得等下周笔记写好，代码放在下方：
 
 BitMap.h
 
@@ -38,7 +40,7 @@ public:
         if (k < 8 * N) return;
         int oldN = N; char* oldM = M;
         init(2*k);
-        memcpy_s(M, N, oldM, oldN);
+        memcpy(M, oldM, oldN);
         delete [] oldM; oldM = nullptr;
     }
     char* bits2string(int n) {
@@ -53,6 +55,7 @@ public:
 
 };
 
+
 #endif /*BitMap_h*/
 ```
 
@@ -61,32 +64,21 @@ dictionary.h
 ```c++
 #ifndef Dictionary_h
 #define Dictionary_h
-#include <fstream>
-#include <iostream>
-#include <stdio.h>
-#include <memory.h>
+
 template <typename K, typename V> struct Entry {
     K key_;
     V val_; 
     Entry(K key = K(), V val = V()): key_(key), val_(val) {}
     Entry(Entry<K, V> const& e) : key_(e.key_), val_(e.val_) {}
-    bool operater >(Entry<K, V> const& e) {
-        e.key_ > key_;
-    }
-    bool operater <(Entry<K, V> const& e) {
-        e.key_ < key_;
-    }
-    bool operater == (Entry<K, V> const& e) {
-        e.key_ == key_;
-    }
-    bool operater != (Entry<K, V> const& e) {
-        e.key_ != key_;
-    }
-}
+    bool operator> (Entry<K, V> const& e) { return key_ > e.key_; }
+    bool operator< (Entry<K, V> const& e) { return key_ < e.key_; }
+    bool operator== (Entry<K, V> const& e) { return key_ == e.key_; }
+    bool operator!= (Entry<K, V> const& e) { return key_ != e.key_; }
+};
 template <typename K, typename V> struct Dictionary {
     virtual int size() const = 0;
-    virtual bool insert (K key, V val) = 0;
-    virtual V* get(K key) = 0;
+    virtual bool Insert (K key, V val) = 0;
+    virtual V* Get(K key) = 0;
     virtual bool Remove(K key) = 0;
 };
 
@@ -101,7 +93,40 @@ Hashmap.h
 #include "BitMap.h"
 #include "Dictionary.h"
 #include <string>
-int primeNLT ( int c, int n, const char* file ) { //根据file文件中的记录，在[c, n)内取最小的素数
+#include <cstring>
+
+
+template <typename K, typename V> class HashMap: public Dictionary<K,V> {
+private:
+    Entry<K, V>** ht;
+    int M; // Bucket Number
+    int N; //  key Number
+    Bitmap* lazyRemoval;
+    #define lazilyRemoved(x) (lazyRemoval->DirectAddressSearch(x))
+    #define markAsRemoved(x) (lazyRemoval->DirectAddressInsert(x))
+    // we may need mark
+protected:
+    int Probe4Hit (const K& key);
+    int Probe4Free (const K& key);
+    void Rehash();
+public:
+    HashMap(int c = 5);
+    ~HashMap();
+    int size() const { return N; }
+    bool Insert (K key, V val);
+    V* Get(K key);
+    bool Remove(K key);
+    size_t Hash(const K key);
+};
+
+#endif /*HashMap_h*/
+```
+
+HashMap.cpp
+
+```c++
+#include "HashMap.h"
+static int primeNLT ( int c, int n, const char* file ) { //根据file文件中的记录，在[c, n)内取最小的素数
    Bitmap B ( file, n ); //file已经按位图格式，记录了n以内的所有素数，因此只要
    while ( c < n ) //从c开始，逐位地
       if ( B.DirectAddressSearch( c ) ) c++; //测试，即可
@@ -120,7 +145,7 @@ static size_t hashCode(const char s[]) {
     }
     return ( size_t ) h;
 }
-static size_t hashCode(std::string& s) {
+static size_t hashCode(const std::string& s) {
     int h = 0;
     for (size_t n = s.size(), i = 0; i < n; ++i) {
         // left cycle shift by 5 digits
@@ -129,28 +154,6 @@ static size_t hashCode(std::string& s) {
     }
     return ( size_t ) h;
 }
-template <typename K, typename V> class HashMap<K, V>: public Dictionary<K,V> {
-private:
-    Entry<K, V>** ht;
-    int M; // Bucket Number
-    int N; //  key Number
-    Bitmap* lazyRemoval;
-    #define lazilyRemoved(x) (lazilyRemoved->DirectAddressSearch(x))
-    #define markAsRemoved(x) (lazilyRemoved->DirectAddressInsert(x))
-    // we may need mark
-protected:
-    int Probe4Hit (const K& key);
-    int Probe4Free (const K& key);
-    void Rehash();
-public:
-    Hashtable(int c = 5);
-    ~Hashtable();
-    int size() const { return N; }
-    bool insert (K key, V val);
-    V* get(K key);
-    bool Remove(K key);
-    size_t Hash(const K key);
-};
 template <typename K, typename V> HashMap<K, V>::HashMap(int c) {
     M = primeNLT(c, 1048576, "prime-bitmap.txt");
     N = 0;
@@ -158,7 +161,7 @@ template <typename K, typename V> HashMap<K, V>::HashMap(int c) {
     memset(ht, 0, sizeof(Entry<K, V>*) *M);
     lazyRemoval = new Bitmap(M);
 } 
-template <typename K, typename V> HashMap<K, V>::~HashMap(int c) {
+template <typename K, typename V> HashMap<K, V>::~HashMap() {
     for (int i = 0; i < M; ++i) {
         if (ht[i]) delete ht[i]; ht[i] = nullptr;
     }
@@ -169,10 +172,10 @@ template <typename K, typename V> HashMap<K, V>::~HashMap(int c) {
 } 
 template <typename K, typename V> size_t HashMap<K, V>::Hash(const K key) {
     size_t hashcode = hashCode(key);
-    return (4*hashCode + 3) % M;
+    return (4*hashcode + 3) % M;
 }
 // linear probing
-template <typename K, typename V> size_t HashMap<K, V>::Probe4Hit(const K& key) {
+template <typename K, typename V> int HashMap<K, V>::Probe4Hit(const K& key) {
     int rank = Hash(key);
     // case 1: the target key has not been found in a nonempty bucket
     // case 2: the bucket is empty and it has been marked as lazily removed
@@ -181,40 +184,41 @@ template <typename K, typename V> size_t HashMap<K, V>::Probe4Hit(const K& key) 
     }
     return rank;
 }
-template <typename K, typename V> V* HashMap<K, V>::get(K key) {
-    int rank = probe4Hit(key);
-    return ht[rank] ? &(ht[rank]->value_) : nullptr;
+template <typename K, typename V> V* HashMap<K, V>::Get(K key) {
+    int rank = Probe4Hit(key);
+    return ht[rank] ? &(ht[rank]->val_) : nullptr;
 }
 
-template <typename K, typename V> bool HashMap<K, V>::remove(K key) {
+template <typename K, typename V> bool HashMap<K, V>::Remove(K key) {
     int rank = Probe4Hit(key);
-    if (!ht[r]) return false;
+    if (!ht[rank]) return false;
     // release the entry element relating to this key word 
-    delete ht[r]; 
-    ht[r] = nullptr; 
-    markAsRemoved(r);
+    delete ht[rank]; 
+    ht[rank] = nullptr; 
+    markAsRemoved(rank);
     --N;
     return true;
 }
-template <typename K, typename V> size_t HashMap<K, V>::Probe4Free(const K& key) {
+template <typename K, typename V> int HashMap<K, V>::Probe4Free(const K& key) {
     int rank = Hash(key);
     while ( ht[rank] ) {
         rank = (rank + 1) % M;
     }
     return rank;
 }
-template <typename K, typename V> bool HashMape<K, V>::insert(K key, V val) {
+template <typename K, typename V> bool HashMap<K, V>::Insert(K key, V val) {
     // 雷同元素不必重复插入
     if (ht[Probe4Hit(key)]) return false;
     int rank = Probe4Free(key);
-    ht[rank] = new Entry<K, v>(key, val);
+    ht[rank] = new Entry<K, V>(key, val);
     ++N;
     if (N * 2 > M) {
+        std::cout << "start rehashing.\n";
         Rehash();
     }
     return true;
 }
-template <typename K, typename V> void HashMape<K, V>::Rehash() {
+template <typename K, typename V> void HashMap<K, V>::Rehash() {
     int old_capacity = M;
     Entry<K, V>** old_ht = ht;
     M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
@@ -223,24 +227,27 @@ template <typename K, typename V> void HashMape<K, V>::Rehash() {
     delete lazyRemoval; 
     lazyRemoval = new Bitmap(M);
     for (int i = 0; i < old_capacity; ++i) {
-        if (old_hit[i] ) {
-            insert(old_hit[i]->key_, old_hit[i]->val_);
+        if (old_ht[i] ) {
+            Insert(old_ht[i]->key_, old_ht[i]->val_);
         }
     }
     delete [] old_ht;
     old_ht = nullptr;
 }
-#endif /*HashMap_h*/
+
+template class HashMap<int, std::string>;
+template class HashMap<int, double>;
+template class HashMap<std::string, std::string>;
 ```
+
+
 
 main.cpp
 
 ```c++
 // author: Claude Du
-#include "TreeNode.h"
-#include "AVLTree.h"
-#include "BlackRedTree.h"
-#include "BitMap.h"
+
+#include "HashMap.h"
 #include <string>
 #include <iostream>
 #include <vector>
@@ -248,20 +255,44 @@ main.cpp
 #include <stack>
 #include <cmath>
 #include <map>
-#define SQUARE(a) ((a)*(a))
-int primeNLT ( int c, int n, const char* file ) { //根据file文件中的记录，在[c, n)内取最小的素数
-   Bitmap B ( file, n ); //file已经按位图格式，记录了n以内的所有素数，因此只要
-   while ( c < n ) //从c开始，逐位地
-      if ( B.DirectAddressSearch( c ) ) c++; //测试，即可
-      else return c; //返回首个发现的素数
-   return c; //若没有这样的素数，返回n（实用中不能如此简化处理）
-}
+
 
 int main()
 {   
-    int a = primeNLT(9, 1048576, "prime-bitmap.txt");
-    std::cout << a << "\n";
+
+    HashMap<int, std::string> hmap;
+    hmap.Insert(6, "We are the champions.");
+    hmap.Insert(7, "Jaylen Brown, the FMVP of 2024");
+    hmap.Insert(14, "What are they gonna say?");
+    hmap.Insert(31, "I guess we will never know");
+    hmap.Insert(13, "we were all on the same page in the locker room.");
+    hmap.Insert(0, "Come on, u r Big Deuce!");
+    std::cout << *(hmap.Get(0)) << "\n";
+    std::cout << *(hmap.Get(14)) << "\n";
+    std::cout << *(hmap.Get(31)) << "\n";
+    hmap.Remove(0);
+    if (hmap.Get(0) == nullptr) {
+        std::cout << "removement operation works\n";
+    }
 }
 
+```
+
+通过命令行指令：
+
+```c++
+g++ hello.cpp HashMap.cpp -g
+./a.exe
+```
+
+运行结果如下：
+
+```
+start rehashing.
+start rehashing.
+Come on, u r Big Deuce!
+What are they gonna say?
+I guess we will never know
+removement operation works
 ```
 
