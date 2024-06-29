@@ -296,3 +296,94 @@ I guess we will never know
 removement operation works
 ```
 
+HashTable.h
+
+```c++
+#ifndef HashMap_h
+#define HashMap_h
+#include "BitMap.h"
+#include "Dictionary.h"
+#include <string>
+#include <cstring>
+#include <vector>
+#include <list>
+
+
+template <typename K, typename V> class HashTable: public Dictionary<K,V> {
+
+private:
+    std::vector<std::list<Entry<K, V>>> ht;
+    int M; // Bucket Number
+    int N; //  key Number
+    bool Find(int rank, K key);
+    // we may need mark
+protected:
+    int Probe4Hit (const K& key);
+    int Probe4Free (const K& key);
+    void Rehash();
+public:
+    HashTable(int c = 5);
+    ~HashTable();
+    int size() const { return N; }
+    bool Insert (K key, V val);
+    V* Get(K key);
+    bool Remove(K key);
+    size_t Hash(const K key);
+};
+template <typename K, typename V> HashTable<K, V>::HashTable(int c) {
+    M = primeNLT(c, 1048576, "prime-bitmap.txt");
+    N = 0;
+    ht = std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+}
+template <typename K, typename V> HashTable<K, V>::~HashTable() {
+    for (auto& lst : ht) {
+        if (!lst.empty()) {
+            lst.clear();
+        }
+    }
+    ht.clear();
+    N = 0;
+    M = 0;
+}
+template <typename K, typename V> size_t HashTable<K, V>::Hash(const K key) {
+    size_t hashcode = hashCode(key);
+    return (4*hashcode + 3) % M;
+}
+template <typename K, typename V> bool HashTable<K, V>::Find(int rank, K key) {
+    if (rank < 0|| rank >= M || ht[rank].empty()) return false;
+    for (auto ele = ht[rank].begin(); ele != ht[rank].end(); ++ele) {
+        if (ele->key_ == key) return true;
+    }
+    return false;
+}
+template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
+    // 雷同元素不必重复插入
+    int rank = Hash(key);
+    if (Find(rank, key)) return false;
+    ++N;
+    ht[rank].push_back(Entry(key, val));
+    if (N * 2 > M) {
+        std::cout << "start rehashing.\n";
+        Rehash();
+    }
+    return true;
+}
+template <typename K, typename V> void HashMap<K, V>::Rehash() {
+    int old_capacity = M;
+    Entry<K, V>** old_ht = ht;
+    M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
+    N = 0; 
+    ht = new Entry<K, V>*[M]; memset(ht, 0, sizeof(Entry<K, V>*) * M );
+    delete lazyRemoval; 
+    lazyRemoval = new Bitmap(M);
+    for (int i = 0; i < old_capacity; ++i) {
+        if (old_ht[i] ) {
+            Insert(old_ht[i]->key_, old_ht[i]->val_);
+        }
+    }
+    delete [] old_ht;
+    old_ht = nullptr;
+}
+#endif /*HashMap_h*/
+```
+
