@@ -299,8 +299,8 @@ removement operation works
 HashTable.h
 
 ```c++
-#ifndef HashMap_h
-#define HashMap_h
+#ifndef HashTable_h
+#define HashTable_h
 #include "BitMap.h"
 #include "Dictionary.h"
 #include <string>
@@ -310,16 +310,12 @@ HashTable.h
 
 
 template <typename K, typename V> class HashTable: public Dictionary<K,V> {
-
 private:
-    std::vector<std::list<Entry<K, V>>> ht;
+    std::vector<std::list<Entry<K, V>>>* ht;
     int M; // Bucket Number
     int N; //  key Number
-    bool Find(int rank, K key);
-    // we may need mark
+    typename std::list<Entry<K, V>>::iterator Find(int rank, K key);
 protected:
-    int Probe4Hit (const K& key);
-    int Probe4Free (const K& key);
     void Rehash();
 public:
     HashTable(int c = 5);
@@ -330,18 +326,56 @@ public:
     bool Remove(K key);
     size_t Hash(const K key);
 };
+
+#endif /*HashTable_h*/
+```
+
+HashTable.cpp
+
+```c++
+#include "HashTable.h"
+static int primeNLT ( int c, int n, const char* file ) { //根据file文件中的记录，在[c, n)内取最小的素数
+   Bitmap B ( file, n ); //file已经按位图格式，记录了n以内的所有素数，因此只要
+   while ( c < n ) //从c开始，逐位地
+      if ( B.DirectAddressSearch( c ) ) c++; //测试，即可
+      else return c; //返回首个发现的素数
+   return c; //若没有这样的素数，返回n（实用中不能如此简化处理）
+}
+static size_t hashCode(const char c) { return (size_t) c; }
+static size_t hashCode(const int k) { return (size_t) k; }
+static size_t hashCode(const long long i) { return (size_t) ((size_t)(i >> 32) + (int) i ); }
+static size_t hashCode(const char s[]) {
+    int h = 0;
+    for (size_t n = strlen(s), i = 0; i < n; ++i) {
+        // left cycle shift by 5 digits
+        h = (h << 5) | (h >> 27); 
+        h += (int) s[i];
+    }
+    return ( size_t ) h;
+}
+static size_t hashCode(const std::string& s) {
+    int h = 0;
+    for (size_t n = s.size(), i = 0; i < n; ++i) {
+        // left cycle shift by 5 digits
+        h = (h << 5) | (h >> 27); 
+        h += (int) s[i];
+    }
+    return ( size_t ) h;
+}
 template <typename K, typename V> HashTable<K, V>::HashTable(int c) {
     M = primeNLT(c, 1048576, "prime-bitmap.txt");
     N = 0;
-    ht = std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
 }
 template <typename K, typename V> HashTable<K, V>::~HashTable() {
-    for (auto& lst : ht) {
+    for (auto& lst : (*ht)) {
         if (!lst.empty()) {
             lst.clear();
         }
     }
-    ht.clear();
+    ht->clear();
+    delete ht;
+    ht = nullptr;
     N = 0;
     M = 0;
 }
@@ -349,41 +383,61 @@ template <typename K, typename V> size_t HashTable<K, V>::Hash(const K key) {
     size_t hashcode = hashCode(key);
     return (4*hashcode + 3) % M;
 }
-template <typename K, typename V> bool HashTable<K, V>::Find(int rank, K key) {
-    if (rank < 0|| rank >= M || ht[rank].empty()) return false;
-    for (auto ele = ht[rank].begin(); ele != ht[rank].end(); ++ele) {
-        if (ele->key_ == key) return true;
+template <typename K, typename V> typename std::list<Entry<K, V>>::iterator HashTable<K, V>::Find(int rank, K key) {
+    if ((*ht)[rank].empty()) return (*ht)[rank].end();
+    for (auto ele = (*ht)[rank].begin(); ele != (*ht)[rank].end(); ++ele) {
+        if (ele->key_ == key) return ele;
     }
-    return false;
+    return (*ht)[rank].end();
 }
 template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
-    // 雷同元素不必重复插入
     int rank = Hash(key);
-    if (Find(rank, key)) return false;
+    if (Find(rank, key) != (*ht)[rank].end()) return false;
     ++N;
-    ht[rank].push_back(Entry(key, val));
+    (*ht)[rank].push_back(Entry<K, V>(key, val));
     if (N * 2 > M) {
         std::cout << "start rehashing.\n";
         Rehash();
     }
     return true;
 }
-template <typename K, typename V> void HashMap<K, V>::Rehash() {
+template <typename K, typename V> void HashTable<K, V>::Rehash() {
     int old_capacity = M;
-    Entry<K, V>** old_ht = ht;
+    std::cout << "old capacity is " << old_capacity << std::endl;
+    std::vector<std::list<Entry<K, V>>>* old_ht = ht;
     M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
-    N = 0; 
-    ht = new Entry<K, V>*[M]; memset(ht, 0, sizeof(Entry<K, V>*) * M );
-    delete lazyRemoval; 
-    lazyRemoval = new Bitmap(M);
+    std::cout << "new capacity is " << M << std::endl;
+
+    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{}); 
     for (int i = 0; i < old_capacity; ++i) {
-        if (old_ht[i] ) {
-            Insert(old_ht[i]->key_, old_ht[i]->val_);
+        if (!(*old_ht)[i].empty() ) {
+            for (auto & ele : (*old_ht)[i]) {
+                Insert(ele.key_, ele.val_);
+            }
+            (*old_ht)[i].clear();
         }
     }
-    delete [] old_ht;
+    old_ht->clear();
+    delete old_ht;
     old_ht = nullptr;
 }
-#endif /*HashMap_h*/
+template <typename K, typename V> bool HashTable<K, V>::Remove(K key) {
+    int rank = Hash(key);
+    typename std::list<Entry<K, V>>::iterator toBedeleted = Find(rank, key);
+    if (toBedeleted == (*ht)[rank].end()) return false;
+    (*ht)[rank].erase(toBedeleted);
+    --N;
+    return true;
+
+}
+template <typename K, typename V> V* HashTable<K, V>::Get(K key) {
+    int rank = Hash(key);
+    typename std::list<Entry<K, V>>::iterator toBeUsed = Find(rank, key);
+    if (toBeUsed == (*ht)[rank].end()) return nullptr;
+    return &(toBeUsed->val_);
+}
+template class HashTable<int, std::string>;
+template class HashTable<int, double>;
+template class HashTable<std::string, std::string>;
 ```
 
