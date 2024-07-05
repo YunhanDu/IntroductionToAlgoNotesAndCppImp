@@ -2,7 +2,35 @@
 
 本笔记是结合了算法导论第四版英文版22年的最新内容（11.5节中关于实际硬件的考量）与第三版中文版的经典算法内容，尝试浅谈哈希表背后的算法细节与数学理论分析，同时也是少有的一篇会实际兼顾哈希表的两种c++实现方式的文章，下面一起看看本篇笔记吧。
 
-动态集合数据结构至少要支持Insert, Search和Delete这样的字典操作。例如，编译器都会维护一个字典（符号表），其中字典的关键字（key）为任意字符串，它与程序语言·中的标识符相对应。哈希表（Hash Table）是实现字典的一种有效数据结构，在实际应用中，其Search性能极好，其查找一个元素的期望时间为 $O(1)$ （最坏情形下，Search期望时间为  $O(n)$ ，与链表相同）。实际上，Python的内置字典的底层实现就是哈希表。
+动态集合数据结构至少要支持Insert, Search和Delete这样的字典操作。例如，编译器都会维护一个字典（符号表），其中字典中元素的关键字（key）为任意字符串，它与程序语言·中的标识符相对应。哈希表（Hash Table）是实现字典的一种有效数据结构，在实际应用中，其Search性能极好，其查找一个元素的期望时间为 $O(1)$ （最坏情形下，Search期望时间为  $O(n)$ ，与链表相同）。实际上，Python的内置字典的底层实现就是哈希表。
+
+PS: 字典的底层实现有很多种，除了哈希表，还有红黑树【】, AVL树【】，与跳表等。
+
+这里的字典元素Entry类与字典操作接口的C++代码如下,：
+
+```c++
+#ifndef Dictionary_h
+#define Dictionary_h
+
+template <typename K, typename V> struct Entry {
+    K key_;
+    V val_; 
+    Entry(K key = K(), V val = V()): key_(key), val_(val) {}
+    Entry(Entry<K, V> const& e) : key_(e.key_), val_(e.val_) {}
+    bool operator> (Entry<K, V> const& e) { return key_ > e.key_; }
+    bool operator< (Entry<K, V> const& e) { return key_ < e.key_; }
+    bool operator== (Entry<K, V> const& e) { return key_ == e.key_; }
+    bool operator!= (Entry<K, V> const& e) { return key_ != e.key_; }
+};
+template <typename K, typename V> struct Dictionary {
+    virtual int size() const = 0;
+    virtual bool Insert (K key, V val) = 0;
+    virtual V* Get(K key) = 0;
+    virtual bool Remove(K key) = 0;
+};
+
+#endif /*Dictionary_h*/
+```
 
 哈希表是普通数组的推广，普通数组通过直接寻址可以在 $O(1)$ 时间访问数组中的任意位置。11.1节就讨论直接寻址表与其c++实现。
 
@@ -36,9 +64,85 @@ $$h:U\rightarrow\left\{0,1,...,m-1\right\}$$
 
 思路2：当出现冲突时，我们最直观的冲突解决方法称为链接法(chaining)，本节余下部分介绍这一方法。11.4节介绍另一种冲突解决方法，开放寻址法（open addressing）。
 
-思路1与思路2一起使用，效果更佳。
+思路1与思路2通常要一起结合使用，效果更佳。
 
 ### 通过链接法解决冲突
+
+链接法的哈希表实现框架如下：
+
+```c++
+#include "BitMap.h"
+#include "Dictionary.h"
+#include <string>
+#include <cstring>
+#include <vector>
+#include <list>
+
+
+template <typename K, typename V> class HashTable: public Dictionary<K,V> {
+private:
+    std::vector<std::list<Entry<K, V>>>* ht;
+    int M; // Slot Number
+    int N; //  key Number
+    typename std::list<Entry<K, V>>::iterator Find(int rank, K key);
+protected:
+    void Rehash();
+public:
+    HashTable(int c = 5);
+    ~HashTable();
+    int size() const { return N; }
+    bool Insert (K key, V val);
+    V* Get(K key);
+    bool Remove(K key);
+    size_t Hash(const K key);
+};
+template <typename K, typename V> HashTable<K, V>::HashTable(int c) {
+    // Generate the smallest prime number which is not smaller than c 
+    M = primeNLT(c, 1048576, "prime-bitmap.txt");
+    N = 0;
+    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+}
+template <typename K, typename V> HashTable<K, V>::~HashTable() {
+    for (auto& lst : (*ht)) {
+        if (!lst.empty()) {
+            lst.clear();
+        }
+    }
+    ht->clear();
+    N = 0;
+    M = 0;
+    delete ht;
+    ht = nullptr;
+}
+```
+
+
+
+#### 链接法哈希表的分析
+
+采用链接法的哈希表性能怎么样呢？比如查找一个具有给定关键字的元素需要多长时间呢？
+
+给定一个能存放n个元素的，具有m个slot的散列表T, 定义T的装载因子(load factor）$\alpha$ 为 $n/m$ , 即一个链的平均存储元素数。我们的分析将借助 $\alpha$ 来说明， $\alpha$ 可以小于，等于或大于 1。
+
+其最坏情形性能很差：当所有n个元素都在一个slot中，查找时间为 $\Theta(n)$ ，与链表的查找元素时间一致。
+
+但我们不能因为其最坏性能差，就不使用哈希表。哈希表的平均性能依赖与所选的散列函数将关键字分布在m个slot上的均匀程度，我们在11.3节讨论这个问题。我们先假定任何一元素都等可能的哈希映射到m个slot中的任何一个，且与其他元素哈希映射到哪无关。我们称该假设为简单均匀哈希（simple uniform hashing）。
+
+对于 $j=0,1,...,m-1$, 列表 $T[j]$ 的长度用 $n_j$ 表示，于是有
+$$
+n = n_0 + n_1+...+n_{m-1}
+$$
+并且 $n_j$ 的期望值为 $E[n_j]=\alpha = n/m$ 【】（证明见附录）。
+
+假定可以在 $O(1)$ 时间内计算出哈希值 $h(k)$ ，从而查找关键字为k的元素的时间线性地依赖于表 $T[h(k)]$ 的长度 $n_{h(k)}$ 。先不考虑计算哈希函数和访问slot $h(k)$ 的 $O(1)$ 时间，我们来看看查找算法查找元素的期望是按，即为比较元素的关键字是否为k。分两种情形来考虑：
+
+1，表中没有元素关键字为 $k$ 。
+
+2，成功地查找到关键字为 $k$ 的元素。
+
+定理11.1 在简单均匀哈希的假设下，对于用链接法解决冲突的散列表，一次成功查找所需的平均时间为 $\Theta(1+\alpha)$ 。
+
+
 
 
 
