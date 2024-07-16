@@ -1,5 +1,7 @@
 # 哈希表算法导论笔记与其c++实现（上）
 
+作者：Claude Du
+
 本笔记是基于算法导论第四版英文版22年的最新内容，尝试浅谈哈希表背后的算法细节与数学理论分析，同时也是少有的一篇会实际兼顾哈希表的两种c++实现方式的文章，下面一起看看本篇笔记吧。
 
 动态集合数据结构至少要支持Insert, Search和Delete这样的字典操作。例如，编译器都会维护一个字典（符号表），其中字典中元素的关键字（key）为任意字符串，它与程序语言·中的标识符相对应。哈希表（Hash Table）是实现字典的一种有效数据结构，在实际应用中，其Search性能极好，其查找一个元素的期望时间为 $O(1)$ （最坏情形下，Search期望时间为  $O(n)$ ，与链表相同）。实际上，Python的内置字典的底层实现就是哈希表。
@@ -72,6 +74,8 @@ $$h:U\rightarrow\left\{0,1,...,m-1\right\}$$
 
 ### 通过链接法解决冲突
 
+在链接法中, 把哈希到同一slot的所有元素都放在一个链表中，如下图所示：
+
 链接法的哈希表实现框架如下：
 
 ```c++
@@ -120,7 +124,46 @@ template <typename K, typename V> HashTable<K, V>::~HashTable() {
 }
 ```
 
+我这里直接使用了std的vector和list来实现该数据结构中slot数组与双向链表的部分。
 
+在采用链接法解决冲突后，哈希表上的字典操作就很容易实现了, 其c++实现如下：
+
+```c++
+template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
+    int rank = Hash(key);
+    if (Find(rank, key) != (*ht)[rank].end()) return false;
+    ++N;
+    (*ht)[rank].push_front(Entry<K, V>(key, val));
+    if (N * 2 > M) {
+        std::cout << "start rehashing.\n";
+        Rehash();
+    }
+    return true;
+}
+template <typename K, typename V> bool HashTable<K, V>::Remove(K key) {
+    int rank = Hash(key);
+    typename std::list<Entry<K, V>>::iterator toBedeleted = Find(rank, key);
+    if (toBedeleted == (*ht)[rank].end()) return false;
+    (*ht)[rank].erase(toBedeleted);
+    --N;
+    return true;
+}
+template <typename K, typename V> V* HashTable<K, V>::Get(K key) {
+    int rank = Hash(key);
+    typename std::list<Entry<K, V>>::iterator toBeUsed = Find(rank, key);
+    if (toBeUsed == (*ht)[rank].end()) return nullptr;
+    return &(toBeUsed->val_);
+}
+template <typename K, typename V> typename std::list<Entry<K, V>>::iterator HashTable<K, V>::Find(int rank, K key) {
+    if ((*ht)[rank].empty()) return (*ht)[rank].end();
+    for (auto ele = (*ht)[rank].begin(); ele != (*ht)[rank].end(); ++ele) {
+        if (ele->key_ == key) return ele;
+    }
+    return (*ht)[rank].end();
+}
+```
+
+实际实现中，插入操作和删除的最坏情况运行时间为$O(n)$ 。因为在插入和删除执行前，我们要检查相应的链表中是否有该元素，检查这一步的最坏运行时间为$O(n)$。
 
 #### 链接法哈希表的分析
 
@@ -148,23 +191,49 @@ $$
 
 **证明：**在简单均匀哈希的假设下，任何尚未被存储在表中的关键字k都等可能地哈希到m个slot中的任何一个。因而当查找一个关键字 $k$ 时，在不成功的情况下，查找的期望时间就是查找至链表 $T[h(k)]$ 末尾的期望时间，这一时间的期望长度为  $E[n_{h(k)}]=\alpha = n/m$ 。于是，一次不成功的查找平均要查 $\alpha$ 个元素，且所需要的总时间为 $\Theta(1+\alpha)$ 。
 
-对于成功的查找来说，情况略有不同，这是因为每个链表并不是等可能地被查找到的，比如空slot是无法成功查找的。假定要查找的元素是表中存放的n个元素中任何一个，且是等可能的。所以slot中的链表长度越长，我们越有可能查找该链表中的元素。即使这样， 期望的查找时间是 $\Theta(1+\alpha)$ 
+对于成功的查找来说，情况略有不同，这是因为每个链表并不是等可能地被查找到的，比如空slot是无法成功查找的。**假定要查找的元素是表中存放的n个元素中任何一个，且是等可能的。**所以slot中的链表长度越长，我们越有可能查找该链表中的元素。即使这样， 期望的查找时间是 $\Theta(1+\alpha)$ 
 
 **定理11.2** 在简单均匀哈希的假设下，对于用链接法解决冲突的哈希表，一次成功查找所需的平均时间为 $\Theta(1+\alpha)$。
 
-**证明：**我们已经假设要查找的元素是表中存放的n个元素中任何一个，且是等可能的。在对元素x的一次成功查找中，对x所在的链表中x前面的元素数多1。在该链表中，因为新的元素都是在表尾插入的，所以出现在x之前的元素都是在x插入前插入的。为了确定所检查元素的期望数，对x所在的链表，在x之前插入到表中的期望元素数加1，再对表中的n个元素x取平均。设 $x_i$ 表示插入到表中的第i个元素，$i=1,2,...,n,$  并设 $k_i = x_i.key$ 。
+**证明：**我们已经假设要查找的元素是表中存放的n个元素中任何一个，且是等可能的。在对元素x的一次成功查找中，对x所在的链表中x前面的元素数多1。在该链表中，因为新的元素都是在链表头插入的，所以出现在x之前的元素都是在x插入后插入的。设 $x_i$ 表示插入到表中的第i个元素，$i=1,2,...,n,$  并设 $k_i = x_i.key$ 。
 
 对每个哈希表中的slot q， 关键字 $k_i$ 和 $k_j$ , 定义指示器随机变量 
 
-$$X_{ijq} = I\left\{\text{the search for } x_i\text{, }h(k_i)=q, and h(k_j)=q\right\}$$ 
+$$X_{ijq} = I\left\{\text{the search for } x_i\text{, }h(k_i)=q \text{，and } h(k_j)=q\right\}$$ 
 
 那么，当搜索 的元素是$x_i$，关键字 $k_i$ 和 $k_j$ 在slot q碰撞时，$X_{ijq} = 1$ 。因为 $Pr\left\{\text{the search is for }x_i\right\} = 1/n$ , $Pr\left\{h(k_i)=q\right\}=1/m$ , $Pr\left\{h(k_j)=q\right\}=1/m$ , 三项事件相互独立，我们有 $Pr\left\{X_{ijq}\right\}= 1/nm^2$, 根据第5章的引理5.1，我们得到 $E[X_{ijq}]=1/nm^2$ 。
 
 接下来，对于每个元素$x_j$ , 我们定义指示器随机变量
 
-$$\begin{aligned}Y_j &= I\left\{x_j\text{ appears in a list prior to the element being searched for } \right\}\\ &=\sum_{q=0}^{m-1} \sum_{i=j+1}^{n}X_{ijq}\end{aligned}$$
+$$\begin{aligned}Y_j &= I\left\{x_j\text{ appears in a list prior to the element being searched for } \right\}\\ &=\sum_{q=0}^{m-1} \sum_{i=1}^{j-1}X_{ijq}\end{aligned}$$
 
-因为 上表达式中 $X_{ijq}$ 中至多有一个等于1，当我们搜索元素 $x_i$ 和 $x_j$ 在同一个链表中（slot q指向的那个链表），以及 $i>j$ (这样的话， $x_i$ 会出现在 $x_j$ 的后面 )
+由于链地址法中采用的是头插法，当目标元素 $x_i$ 和 $x_j$ 在同一个链表中（slot q指向的那个链表），以及 $i<j$ (这样的话，在链表中 $x_i$ 会出现在 $x_j$ 的后面 )，那么 $x_j$ 会在 $x_i$ 之前出现。
+
+我们最后要定义的随机变量是$Z$ , 用来统计有多少元素会出现在要搜索的元素前：
+
+ $$\begin{aligned}Z=\sum_{j=1}^{n}Y_j\end{aligned}$$
+
+因为我们必须要统计要被成功搜索的元素加上其链表中在其链表位置之前的所有元素，我们要计算 $E[Z+1]$ 。使用期望的线性性质，我们得到
+$$
+\begin{aligned}
+E[Z+1] &=  E[1+\sum_{j=1}^{n}Y_j] \\
+& = 1 + E[\sum_{j=1}^{n}\sum_{q=0}^{m-1} \sum_{i=1}^{j-1}X_{ijq}] \\ 
+& =  1 + E[\sum_{q=0}^{m-1}\sum_{j=1}^{n}\sum_{i=1}^{j-1}X_{ijq}] \\ 
+& = 1 + \sum_{q=0}^{m-1}\sum_{j=1}^{n}\sum_{i=1}^{j-1} E[X_{ijq}] &&\text{(by linearity of expectation)}\\ 
+& = 1 + \sum_{q=0}^{m-1}\sum_{j=1}^{n}\sum_{i=1}^{j-1} \frac{1}{nm^2} \\
+& = 1 + \sum_{q=0}^{m-1}\sum_{j=1}^{n}\frac{j-1}{nm^2} \\
+& = 1 + \sum_{q=0}^{m-1}\frac{n(n-1)}{2}.\frac{j-1}{nm^2} \\
+& = 1 + m.\frac{n(n-1)}{2}.\frac{j-1}{nm^2} \\
+& = 1 + \frac{(n-1)}{2m} \\
+& = 1 + \frac{n}{2m}- \frac{1}{2m}\\
+& = 1 + \frac{\alpha}{2}- \frac{\alpha}{2n}\\
+\end{aligned}
+$$
+因此，成功搜索的总耗时（包括计算哈希函数的时间）为 $\Theta(2+\alpha/2-alpha/2n) = \Theta(1+\alpha)$ 。
+
+上面的分析意味着什么呢？如果散列表中slot数与表中的元素数成正比，则有 $n = O(m)$ , 从而 $\alpha = n/m = O(m)/m = O(1)$。所以，查找操作平均需要常数时间，由于插入与删除操作这里耗时最多的操作也是查找，所以这两个操作的平均运行时间也是$O(1)$ 。
+
+
 
 ## 11.3哈希函数
 
