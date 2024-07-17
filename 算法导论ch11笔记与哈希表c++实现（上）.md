@@ -46,7 +46,7 @@ template <typename K, typename V> struct Dictionary {
 
 ## 11.1直接寻址表
 
-
+内容比较简单，和数组几乎一模一样，第四版内容也与第三版没有区别，具体内容可以直接看第三版中文版。
 
 ## 11.2哈希表
 
@@ -124,9 +124,9 @@ template <typename K, typename V> HashTable<K, V>::~HashTable() {
 }
 ```
 
-我这里直接使用了std的vector和list来实现该数据结构中slot数组与双向链表的部分。
+我这里第11行直接使用了std的vector和list来实现该数据结构中slot数组与双向链表的部分，这里第11行使用指针的原因，是为了避免哈希表扩容（Rehash）操作时会出现两次拷贝vector元素的操作。
 
-在采用链接法解决冲突后，哈希表上的字典操作就很容易实现了, 其c++实现如下：
+在采用链接法解决冲突后，哈希表上的字典操作（插入，删除与查找）就很容易实现了, 其c++实现如下：
 
 ```c++
 template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
@@ -154,12 +154,34 @@ template <typename K, typename V> V* HashTable<K, V>::Get(K key) {
     if (toBeUsed == (*ht)[rank].end()) return nullptr;
     return &(toBeUsed->val_);
 }
+// find the certain element of the hash table
 template <typename K, typename V> typename std::list<Entry<K, V>>::iterator HashTable<K, V>::Find(int rank, K key) {
     if ((*ht)[rank].empty()) return (*ht)[rank].end();
     for (auto ele = (*ht)[rank].begin(); ele != (*ht)[rank].end(); ++ele) {
         if (ele->key_ == key) return ele;
     }
     return (*ht)[rank].end();
+}
+// expanding hash table
+template <typename K, typename V> void HashTable<K, V>::Rehash() {
+    int old_capacity = M;
+    std::cout << "old capacity is " << old_capacity << std::endl;
+    std::vector<std::list<Entry<K, V>>>* old_ht = ht;
+    M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
+    std::cout << "new capacity is " << M << std::endl;
+
+    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{}); 
+    for (int i = 0; i < old_capacity; ++i) {
+        if (!(*old_ht)[i].empty() ) {
+            for (auto & ele : (*old_ht)[i]) {
+                Insert(ele.key_, ele.val_);
+            }
+            (*old_ht)[i].clear();
+        }
+    }
+    old_ht->clear();
+    delete old_ht;
+    old_ht = nullptr;
 }
 ```
 
@@ -173,7 +195,7 @@ template <typename K, typename V> typename std::list<Entry<K, V>>::iterator Hash
 
 其最坏情形性能很差：当所有n个元素都在一个slot中，查找时间为 $\Theta(n)$ ，与链表的查找元素时间一致。
 
-但我们不能因为其最坏性能差，就不使用哈希表。哈希表的平均性能依赖与所选的散列函数将关键字分布在m个slot上的均匀程度，我们在11.3节讨论这个问题。我们先假定任何一元素都等可能的哈希映射到m个slot中的任何一个，且与其他元素哈希映射到哪无关。我们称该假设为简单均匀哈希（simple uniform hashing）。
+但我们不能因为其最坏性能差，就不使用哈希表。哈希表的平均性能依赖与所选的散列函数将关键字分布在m个slot上的均匀程度，我们在11.3节讨论这个问题。**我们先假定任何一元素都等可能的哈希映射到m个slot中的任何一个，且与其他元素哈希映射到哪无关。我们称该假设为独立均匀哈希（independent uniform hashing）。**
 
 对于 $j=0,1,...,m-1$, 列表 $T[j]$ 的长度用 $n_j$ 表示，于是有
 $$
@@ -201,7 +223,17 @@ $$
 
 $$X_{ijq} = I\left\{\text{the search for } x_i\text{, }h(k_i)=q \text{，and } h(k_j)=q\right\}$$ 
 
-那么，当搜索 的元素是$x_i$，关键字 $k_i$ 和 $k_j$ 在slot q碰撞时，$X_{ijq} = 1$ 。因为 $Pr\left\{\text{the search is for }x_i\right\} = 1/n$ , $Pr\left\{h(k_i)=q\right\}=1/m$ , $Pr\left\{h(k_j)=q\right\}=1/m$ , 三项事件相互独立，我们有 $Pr\left\{X_{ijq}\right\}= 1/nm^2$, 根据第5章的引理5.1，我们得到 $E[X_{ijq}]=1/nm^2$ 。
+那么，当搜索 的元素是$x_i$，关键字 $k_i$ 和 $k_j$ 在slot q碰撞时，$X_{ijq} = 1$ 。因为 
+
+$Pr\left\{\text{the search is for }x_i\right\} = 1/n$ ,
+
+ $Pr\left\{h(k_i)=q\right\}=1/m$ ,
+
+ $Pr\left\{h(k_j)=q\right\}=1/m$ , 
+
+三项事件相互独立，我们有 $Pr\left\{X_{ijq}\right\}=Pr\left\{\text{the search is for }x_i\right\}\cdot Pr\left\{h(k_i)=q\right\}\cdot Pr\left\{h(k_j)=q\right\}= 1/nm^2$,
+
+ 根据第5章的引理5.1，我们得到 $E[X_{ijq}]=1/nm^2$ 。
 
 接下来，对于每个元素$x_j$ , 我们定义指示器随机变量
 
@@ -237,7 +269,15 @@ $$
 
 ## 11.3哈希函数
 
+为了让哈希表正常工作，我们需要好的哈希函数。除了让哈希函数能够快速计算，一个好的哈希函数要有什么样的性质呢？我们该如何设计好的哈希函数呢？
 
+本节首先用两种临时的方法去创造哈希函数来回答上面的问题：用除法进行哈希和用乘法进行哈希。这两种方法是受限的因为他们试图通过提供一个固定的哈希函数让其在任何数据上都能正常工作，这个目标并不能很好地做到。
+
+之后我们会看到：想要获得对于任何数据都可以有较好的平均性能的哈希函数，我们可以设计一个合适的哈希函数簇，然后运行时随机从哈希函数簇中选择一个出来作为正式哈希函数，该随机选择和输入数据无关。这个方法被称为随机哈希。这个方法称为随机哈希，有一种特殊的随机哈希，全域哈希法，性能很好。就像第7章的随机快速排序（），随机算法是算法设计中真的很重要。
+
+什么是好的哈希函数？
+
+一个好的哈希函数近似满足**独立均匀哈希**：
 
 ## 11.4开放寻址法（Open Addressing）
 
