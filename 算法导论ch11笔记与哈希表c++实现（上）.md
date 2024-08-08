@@ -2,13 +2,13 @@
 
 作者：Claude Du
 
-算法导论第四版英文版相比与第三版有较大改动(苍天。。。工作量几乎翻倍），本笔记是基本基于第四版英文版的最新内容，尝试浅谈哈希表背后的算法细节与数学理论分析，同时也是少有的一篇会实际兼顾哈希表的两种c++实现方式以及全域哈希函数的c++实现的文章，下面一起看看本篇笔记吧。
+算法导论第四版英文版相比与第三版有较大改动，本笔记是基本基于第四版英文版的最新内容，修改了原文部分错误的同时，尝试浅谈哈希表背后的算法细节与数学理论分析，同时也是少有的一篇会实际兼顾哈希表的两种c++实现方式以及全域哈希函数的c++实现的文章，以及下面一起看看本篇笔记吧。
 
 动态集合数据结构至少要支持Insert, Search和Delete这样的字典操作。例如，编译器都会维护一个字典（符号表），其中字典中元素的关键字（key）为任意字符串，它与程序语言·中的标识符相对应。哈希表（Hash Table）是实现字典的一种有效数据结构，在实际应用中，其Search性能极好，其查找一个元素的期望时间为 $O(1)$ （最坏情形下，Search期望时间为  $O(n)$ ，与链表相同）。实际上，Python的内置字典的底层实现就是哈希表。
 
 PS: 字典的底层实现有很多种，除了哈希表，还有红黑树【1】, AVL树【2】，与跳表等。
 
-这里的字典元素Entry类与字典操作接口的C++代码如下：
+这里的字典元素Entry类与字典操作接口的C++代码如下，来自邓俊辉的《数据结构（c++语言版)》：
 
 ```c++
 #ifndef Dictionary_h
@@ -42,11 +42,11 @@ template <typename K, typename V> struct Dictionary {
 
 第一部分包含11.1节到11.3节，包含哈希表的链接法c++实现，以及全域哈希函数的c++实现。
 
-第二部分包含11.4节到11.6节，包含哈希表的开放寻址法的实现，该方法的c++实现会一定程度上借鉴邓俊辉的《数据结构（c++语言版)》【】。
+第二部分包含11.4节到11.6节，包含哈希表的开放寻址法的实现，该方法的c++实现会一定程度上借鉴邓俊辉的《数据结构（c++语言版)》。
 
 ## 11.1直接寻址表
 
-内容比较简单，和数组几乎没有区别，第四版内容也与第三版没有区别，具体内容可以直接看第三版中文版。
+内容比较简单，和数组没有太大区别，第四版内容也与第三版没有区别，具体内容可以直接看第三版中文版。
 
 ## 11.2哈希表
 
@@ -76,6 +76,8 @@ $$h:U\rightarrow\left\{0,1,...,m-1\right\}$$
 
 在链接法中, 把哈希到同一slot的所有元素都放在一个链表中，如下图所示：
 
+![](./113%E6%88%AA%E5%9B%BE.PNG)
+
 链接法的哈希表实现框架如下：
 
 ```c++
@@ -86,53 +88,62 @@ $$h:U\rightarrow\left\{0,1,...,m-1\right\}$$
 #include <cstring>
 #include <vector>
 #include <list>
-
+#include <stdlib.h>
+#include <time.h>
 
 template <typename K, typename V> class HashTable: public Dictionary<K,V> {
 private:
     std::vector<std::list<Entry<K, V>>>* ht;
     int M; // Slot Number
     int N; //  key Number
+    int a; // a is a random odd number used for universal hash
+    int l; // l is used for universal hash
     typename std::list<Entry<K, V>>::iterator Find(int rank, K key);
+    size_t UniversalHash(const K key);
 protected:
     void Rehash();
 public:
-    HashTable(int c = 5);
+    HashTable(int c = 2);
     ~HashTable();
     int size() const { return N; }
     bool Insert (K key, V val);
     V* Get(K key);
     bool Remove(K key);
-    size_t Hash(const K key);
 };
 
 template <typename K, typename V> HashTable<K, V>::HashTable(int c) {
-    // Generate the smallest prime number which is not smaller than c 
-    M = primeNLT(c, 1048576, "prime-bitmap.txt");
+    if (c >= 12) {
+        std::cout << "Please ensure the number you put in is smaller than 12." << "\n";
+        return;
+    }
+    l = c;
+    M = 1 << l;
     N = 0;
-    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+    ht = std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+    srand((unsigned int)time(0));
+    a = 2*(rand()/2) + 1;
 }
 template <typename K, typename V> HashTable<K, V>::~HashTable() {
-    for (auto& lst : (*ht)) {
+    for (auto& lst : ht) {
         if (!lst.empty()) {
             lst.clear();
         }
     }
-    ht->clear();
+    ht.clear();
     N = 0;
+    l = 0;
     M = 0;
-    delete ht;
-    ht = nullptr;
+    if (ht.empty()) std::cout << "HashTable has been deleted" << "\n";
 }
 ```
 
-我这里第11行直接使用了std的vector和list来实现该数据结构中slot数组与双向链表的部分，这里第11行使用指针的原因，是为了避免哈希表扩容（Rehash）操作时会出现两次拷贝vector元素的操作。
+我这里第11行直接使用了std的vector和list来实现该数据结构中slot数组与双向链表的部分。
 
 在采用链接法解决冲突后，哈希表上的字典操作（插入，删除与查找）就很容易实现了, 其c++实现如下：
 
 ```c++
 template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
-    int rank = Hash(key);
+    int rank = UniversalHash(key);
     if (Find(rank, key) != (*ht)[rank].end()) return false;
     ++N;
     (*ht)[rank].push_front(Entry<K, V>(key, val));
@@ -143,7 +154,7 @@ template <typename K, typename V> bool HashTable<K, V>::Insert(K key, V val) {
     return true;
 }
 template <typename K, typename V> bool HashTable<K, V>::Remove(K key) {
-    int rank = Hash(key);
+    int rank = UniversalHash(key);
     typename std::list<Entry<K, V>>::iterator toBedeleted = Find(rank, key);
     if (toBedeleted == (*ht)[rank].end()) return false;
     (*ht)[rank].erase(toBedeleted);
@@ -151,7 +162,7 @@ template <typename K, typename V> bool HashTable<K, V>::Remove(K key) {
     return true;
 }
 template <typename K, typename V> V* HashTable<K, V>::Get(K key) {
-    int rank = Hash(key);
+    int rank = UniversalHash(key);
     typename std::list<Entry<K, V>>::iterator toBeUsed = Find(rank, key);
     if (toBeUsed == (*ht)[rank].end()) return nullptr;
     return &(toBeUsed->val_);
@@ -168,22 +179,26 @@ template <typename K, typename V> typename std::list<Entry<K, V>>::iterator Hash
 template <typename K, typename V> void HashTable<K, V>::Rehash() {
     int old_capacity = M;
     std::cout << "old capacity is " << old_capacity << std::endl;
-    std::vector<std::list<Entry<K, V>>>* old_ht = ht;
-    M = primeNLT(2*M, 1048576, "prime-bitmap.txt");
+    std::vector<std::list<Entry<K, V>>> old_ht = ht;
+    M = old_capacity << 1;
+    ++l;
+    if (l >= 12) {
+        std::cout << "The capacity is way too big. I refuse to be rehashed. " << std::endl;
+        return; 
+    }
     std::cout << "new capacity is " << M << std::endl;
-
-    ht = new std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{}); 
+    
+    ht = std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{}); 
+    N = 0;
     for (int i = 0; i < old_capacity; ++i) {
-        if (!(*old_ht)[i].empty() ) {
-            for (auto & ele : (*old_ht)[i]) {
+        if (!old_ht[i].empty() ) {
+            for (auto & ele : old_ht[i]) {
                 Insert(ele.key_, ele.val_);
             }
-            (*old_ht)[i].clear();
+            old_ht[i].clear();
         }
     }
-    old_ht->clear();
-    delete old_ht;
-    old_ht = nullptr;
+    old_ht.clear();
 }
 ```
 
@@ -203,7 +218,7 @@ template <typename K, typename V> void HashTable<K, V>::Rehash() {
 $$
 n = n_0 + n_1+...+n_{m-1}
 $$
-并且 $n_j$ 的期望值为 $E[n_j]=\alpha = n/m$ （简单证明可以用期望的线性相关性，也可用二项展开求导的方式硬证）。
+并且 $n_j$ 的期望值为 $E[n_j]=\alpha = n/m$ （简单证明可以用期望的线性相关性，也可用二项展开再求导的方式硬证）。
 
 假定可以在 $O(1)$ 时间内计算出哈希值 $h(k)$ ，从而查找关键字为k的元素的时间线性地依赖于表 $T[h(k)]$ 的长度 $n_{h(k)}$ 。先不考虑计算哈希函数和访问slot $h(k)$ 的 $O(1)$ 时间，我们来看看查找算法查找元素的期望数，即为比较元素的关键字是否为k而检查表 $T[h(k)]$ 中的元素数。分两种情形来考虑：
 
@@ -287,19 +302,31 @@ $$
 
 随机哈希，在11.3.2节中会详细描述，会随机从哈希函数簇中选择一个出来作为正式哈希函数。该方法完全不需要知道输入数据的概率分布模型，所以强烈推荐使用随机哈希。
 
-11.3.1 静态哈希（Static Hashing）
+### 11.3.1 静态哈希（Static Hashing）
 
-除法哈希
+静态哈希会使用单个，不变的哈希函数。其中唯一有随机性的元素便是输入数据的未知概率分布·。本节讨论3个最典型的哈希方法：除法哈希，乘法哈希和乘法移位哈希。虽然这三种哈希方法不再推荐使用，但是这三个方法依然为后续的随机哈希打下了很好的基础。
 
+#### 除法哈希
 
+通过将$k$ 除以 $m$ 的余数，将关键字 $k$ 映射到 $m$ 个slot中的某一个上，即哈希函数为：
+$$
+h(k)= k \text{ }mod \text{ }m
+$$
+如果m为一个不太接近2的整数幂的质数，常常是m的一个较好的选择。
 
-乘法哈希
+#### 乘法哈希
 
+构造乘法哈希包含两个步骤。第一步，用关键字 $k$ 乘上常数 $A$ ($0<A<1$), 并提取 $kA$ 的小数部分。第二部，用m乘以这个值，再向下取整，总之，散列函数为：
+$$
+h(k)=\lfloor m(kA \text{ }mod\text{ }1)\rfloor
+$$
+这里 "$kA \text{ }mod\text{ }1$" 是取 $kA$ 的小数部分。Knuth建议$A$取黄金分割 $A\approx (\sqrt{5} -1)/2$ , m的选择不关键。
 
-
-乘法移位哈希
+#### 乘法移位哈希
 
 实践中，乘法哈希法在哈希表的slot数是2的精确幂的时候表现是最好的，即$m = 2^l, l\in \mathbb{N} \text{ }\wedge \text{ }l\leq w$ ，其中 $w$ 为机器字比特数，取 $a=A2^w$ , 其中 $0 < A < 1$ (Knuth建议取黄金分割 $A\approx (\sqrt{5} -1)/2$) , 则 $0<a<2^w$ , 所以该方法在大多数计算机上都可以运用。这里假设k的比特数不超过$w$。
+
+![](./%E6%88%AA%E5%9B%BE.PNG)
 
 根据图11.4，首先将乘以 w比特位的整数 $a$ , 乘积可以表示为 $2w$ 比特位的值 $r_12^w + r_0$ , $r_0$ 为乘积的低 $w$ 比特位，$r_1$ 为乘积的高 $w$ 比特位。然后将 $r_1$ 截断，取 $r_0$ 的高 $l$ 比特位为所求的 $l$ 位散列值。
 
@@ -343,7 +370,7 @@ $$
 
 这里会介绍两种设计全域哈希函数簇的方法，第一种会用到点数论，第二种会基于11.3.1节中介绍的乘法移位法并对该法中的一个参数进行随机化。第一个方法数学上证明其全域性质很容易，第二个方法更新颖和高效。
 
-基于数论的全域哈希函数簇
+#### 基于数论的全域哈希函数簇
 
 选一个足够大的质数$p$ , 任一关键字 $k$ 满足 $0\leq k\leq p-1$ 。令 $\mathbb{Z}_p$ 代表集合 $\left\{0, 1, ...,p-1\right\}$ , 令 $\mathbb{Z}_p^*$  代表集合  $\left\{1, 2, ...,p-1\right\}$ ，由于关键字域的范围比哈希表槽位数最多，即 $p>m$ 。
 
@@ -383,19 +410,47 @@ $$
 
 因此，两个不同的关键字 $k_1,k_2$ 最终碰撞的概率等于 $r_1 \equiv r_2(\text{  }mod\text{  }m)$ 的概率。对任一 $r_1$ 值，$r_2$ 只能是剩余的 $p-1$ 个值中的其中一个 ，其中满足  $r_1 \equiv r_2(\text{  }mod\text{  }m)$ 的数量最多为：$\lceil \frac{p}{m}\rceil-1 \leq \frac{p+m-1}{m}-1 = \frac{p-1}{m}$ (这里书中计算是正确的), 则 $r_1 \equiv r_2(\text{  }mod\text{  }m)$ 的概率至多为 $\frac{p-1}{m}/(p-1)=1/m$ 。
 
-因此，对于任何一对不同的关键字 $k_1,k_2 \in \mathbb{Z}_p$， 满足 $h_{ab}(k_1) = h_{ab}(k_2)$ 的概率至多为 $1/m$ , 则簇$\mathscr{H}_{pm}$ 为全域的。很精彩的证明!!
+因此，对于任何一对不同的关键字 $k_1,k_2 \in \mathbb{Z}_p$， 满足 $h_{ab}(k_1) = h_{ab}(k_2)$ 的概率至多为 $1/m$ , 则簇$\mathscr{H}_{pm}$ 为全域的。
 
-基于乘法位移法的$2/m-$全域的哈希函数簇 
+#### 基于乘法位移法的$2/m-$全域的哈希函数簇 
 
 建议在实践中使用如下基于乘法移位法的散列函数簇，它不仅非常高效而且是$2/m-$全域的。
 $$
-\mathscr{H} = \left\{h_{a}\text{ }  : \text{ a为奇数}  \wedge 1\leq a<m\text{ }\wedge\text{ }h_a\text{由等式(11.2)定义}\right\} \tag{11.5}
+\mathscr{H} = \left\{h_{a}\text{ }  : \text{ a为奇数}  \wedge 1\leq a<2^w\text{ }\wedge\text{ }h_a\text{由等式(11.2)定义}\right\} \tag{11.5}
 $$
+第四版英文原文中认为 $a < m$ , 我个人看过算法大神Professor Thorup的分析后【3】，判断这里第四版此处有错，应该就是 $a<2^w$ 。
+
+PS: 哈哈哈，当时按照第四版的定义，真是绞尽脑汁都没证明出来其全域特性，当时我就该明确认为书里肯定写错了。
+
+其c++实现如下：
+
+```c++
+template <typename K, typename V> HashTable<K, V>::HashTable(int c) {
+    if (c >= 12) {
+        std::cout << "Please ensure the number you put in is smaller than 12." << "\n";
+        return;
+    }
+    l = c;
+    M = 1 << l;
+    N = 0;
+    ht = std::vector<std::list<Entry<K, V>>>(M, std::list<Entry<K, V>>{});   
+    srand((unsigned int)time(0));
+    // randomization of a;
+    a = 2*(rand()/2) + 1;
+}
+template <typename K, typename V> size_t HashTable<K, V>:: UniversalHash(const K key) {
+    size_t hashcode = hashCode(key);
+    return (hashcode*a) >> (wordBitSize - l);
+}
+```
+
+
+
 **定理11.5**
 
 由等式(11.5)定义的散列函数簇$\mathscr{H}$ 是 $2/m$ - 全域的。 
 
-以下的证明些许借鉴了算法专家Professor Mukkel Thorup的思路(自己想了很久没证明出来，数论修炼还是不到家)。[]
+以下的证明基本照搬了Professor Thorup的分析。
 
 **证明：**这里 $m = 2^l$ , 这里关键字的比特数不超过 $w$ 。(见乘法移位法)设两个不同的 $k_1, k_2\in \mathbb{Z}_{2^w}$ 。对于给定的哈希函数 $h_{a}$ , 有
 $$
@@ -406,25 +461,34 @@ $$
 $$
 其中 $r_1 \neq r_2$ 。为什么？我们有 $r_1-r_2=a(k_1-k_2)\text{ } (mod \text{ }2^w)$ 。
 
-事实1：如果 $\alpha$ 是奇数以及 $\beta \in \mathbb{Z}_{2^w}^*$  则 $\alpha \beta \neq 0(\text{  }mod\text{  }2^w)$ .
+**事实1**：如果 $\alpha$ 是奇数以及 $\beta \in \mathbb{Z}_{2^w}^*$  则 $\alpha \beta \neq 0(\text{  }mod\text{  }2^w)$ .
 
-定义 $b$ 使得 $a = 1+2b$ , $b$ 在集合 $\mathbb{Z}_{2^{l-1}}$ 中均匀分布。接着，我们再定义奇数 $z$ 使得 $r_1 - r_2 = z2^i$ 。那么 $a(k_1 - k_2) =  z2^i + bz2^{i+1}$ 。 
+定义 $b$ 使得 $a = 1+2b$ , $b$ 在集合 $\mathbb{Z}_{2^{w-1}}$ 中等可能分布。接着，我们再定义奇数 $z$ 使得 $r_1 - r_2 = z2^i$ 。那么 $a(k_1 - k_2) =  z2^i + bz2^{i+1}$ 。 
 
-现在，我们证明 $bz\text{  }mod\text{  }2^{l-1} $ 在集合 $\mathbb{Z}_{2^{l-1}}$ 均匀分布。
+现在，我们证明 $bz\text{  }mod\text{  }2^{w-1} $ 在集合 $\mathbb{Z}_{2^{w-1}}$ 等可能分布。
 
-首先，要注意到  $b \in \mathbb{Z}_{2^{l-1}}$和模乘积 $bz\text{  }mod\text{  }2^{l-1} $ 是一对一映射关系。可以用反证法来证明该映射关系：如果存在另一个  $b’ \in \mathbb{Z}_{2^{l-1}}$ 使得  $b'z\text{  }mod\text{  }2^{l-1} =bz\text{  }mod\text{  }2^{l-1} $ , 则有 $z(b'-b)=0\text{  }mod\text{  }2^{l-1}$ , 留意到奇数$z$， 该结论与事实1不符。该一对一映射关系得证
+首先，要注意到  $b \in \mathbb{Z}_{2^{w-1}}$和模乘积 $bz\text{  }(mod\text{  }2^{w-1}) $ 是一对一映射关系。可以用反证法来证明该映射关系：如果存在另一个  $b’ \in \mathbb{Z}_{2^{w-1}}$ 使得  $b'z\text{  }mod\text{  }2^{w-1} =bz\text{  }mod\text{  }2^{w-1} $ , 则有 $z(b'-b)=0\text{  }mod\text{  }2^{w-1}$ , 留意到奇数$z$， 该结论与事实1不符。并且两集合的元素数相同，该一对一映射关系得证，该一对一映射意味着 $bz\text{  }mod\text{  }2^{w-1} $ 在集合 $\mathbb{Z}_{2^{w-1}}$ 等可能分布。那么如下图所示【3】，我们可以得到如下的结论 $a(k_1 - k_2) =  z2^i + bz2^{i+1}$ 在比特位置  $0,...,i-1$ 处值为0，在比特位置$i$ 处值为1, 在比特位置  $i+1,...,i+w-1$ 处等可能分布0或1。 
 
-由于 $a$ 为奇数 且 $a \in \mathbb{Z}_{2^w}^*$，与 $2^w$ 互质，和 $(k_1-k_2)$ 与 $2^w$ 的最大公约数为 $2^k$ 其中整数 $k$ 满足 $0\leq k < w$，所以 $a(k_1-k_2) \text{ }mod\text{ }2^w\neq 0$ 。所以  $r_1 \neq r_2$ 。
+![](./%E5%AE%9A%E7%90%86115%E8%AE%BA%E8%AF%81.PNG)
 
-此外，我们可以根据 $(r_1, r_2)$ 可以解出(见31章定理31.24)，
-$$
-\begin{aligned}
-&a_0 = x'((r_1-r_2)/d \text{  }))\text{  }mod\text{  }2^w \\
-&a_i = a_0 + i((r_1-r_2)/d)
-\end{aligned}
-$$
-其中 $d = gcd(k_1-k_2,2^w)$, $x'$ 为 $d=(k_1-k_2)x + (2^w)y$ 的整数唯一解(使用Extended-Euclid算法求出)， $i=0,1,...,d-1$ , 在d个解中的奇数解。
+如果 $h_a(k_1)=h_a(k_2)$ ，即 $ak_1$ 和 $ak_2 = ak_1+a(k_1 - k_2) $ 在比特位置  $w-l,...,w-1$ 处相同，此时两个不同的关键字 $k_1,k_2$ 碰撞。如上图所示，两个关键字一定会在比特位置$i$ 处值不一样，所以
 
+1.如果 $i \geq w-l$ ,  则 $h_a(k_1)\neq h_a(k_2)$ 。
 
+2.如果 $i < w-l$ , 那么如果  $a(k_1 - k_2) $ 在比特位置  $w-l,...,w-1$ 处全为 0，或全为1，碰撞发生。因为 $a(k_1 - k_2) $ 在比特位置  $w-l,...,w-1$，等可能分布，那么其在比特位置  $w-l,...,w-1$ 处全为 0，或全为1的概率为 $2/2^l=2/m$。
+
+综上， 满足 $h_{a}(k_1) = h_{a}(k_2)$ 的概率至多为 $2/m$ , 则簇$\mathscr{H}$ 为$2/m-$全域的，证毕！
 
 也就是说，任意两个不同关键字发生冲突的概率最多为 $2/m$ 。在许多实践场景中，与全域散列函数相比，$2/m$-全域的哈希函数对计算散列函数的速度的提升大大补偿了两个不同关键字发生冲突概率上界的提升。
+
+
+
+## 附录
+
+【1】T. H. Cormen, C. E. Leiserson, R. L. Rivest, and C. Stein. Introduction to algorithms. MIT Press, McGraw-Hill, 4 edition, 2022. 
+
+​        相应中文笔记与c++实现：https://3ms.huawei.com/km/blogs/details/15343190?l=zh-cn
+
+【2】https://3ms.huawei.com/km/blogs/details/15383014?l=zh-cn
+
+【3】Mikkel Thorup. High Speed Hashing for Integers and Strings. https://arxiv.org/pdf/1504.06804, 2020
