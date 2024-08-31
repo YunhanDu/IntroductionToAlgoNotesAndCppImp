@@ -258,47 +258,54 @@ We shall have a true shared_ptr:
 
 ```c++
 // author: Calude Du
-
 #include <iostream>
+#include <vector>
 #include <mutex>
 #include <thread>
-#include <vector>
-
-
-template<class T>
-class SharedCopy
-{
+template <typename T>
+class Shared_ptr {
 private:
-    T* _data;
+    T* _ptr;
     int *_refCount;
     std::mutex* _pMutex;
     void Release();
-
 public:
-    SharedCopy(T* data = nullptr);
-    ~SharedCopy();
-    SharedCopy(const SharedCopy<T>& source);
-    SharedCopy<T>& operator=(const SharedCopy<T>& sp);
-    T& operator*() const { return *_data; }
-    T* operator->() const { return _data; }
-    int UseCount() const { return *_refCount; }
-    T* Get() const { return _data; }
-    void AddRefCount();
-
+    Shared_ptr(T* ptr = nullptr) : _ptr(ptr) , _refCount(new int(1)), _pMutex(new std::mutex) {}
+    ~Shared_ptr(const Shared_ptr<T>& sp) : _pPtr(sp._ptr) , _refCount(sp._refCount), _pMutex(sp._pMutex)
+    {
+        AddRefCount();
+    }
+    Shared_ptr<T>& operator=(const Shared_ptr<T>& sp); 
+    void AddRefCount();  
+    T& operator*() { return *_ptr; } 
+    T* operator->() { return _ptr; }
+    int UseCount() { return *_refCount; }
+    T* Get() { return _ptr; }
 };
-
-
-
-
-int main()
+template <typename T>
+void Shared_ptr<T>::Release() 
 {
-    SharedCopy source(42);
-    SharedCopy destination1(source);
-    SharedCopy destination2(source);
-    SharedCopy destination3(source);
-
-    return 0;
+    bool deleteFlag = false;
+    _pMutex->lock();
+    --(*_refCount);
+    if ((*_refCount) == 0)
+    {
+        delete _refCount;
+        delete _ptr;
+        deleteFlag = true;
+    }
+    _pMutex->unlock();
+    if (deleteFlag == true)
+        delete _pMutex;
 }
+template <typename T>
+void Shared_ptr<T>::AddRefCount()
+{
+    _pMutex->lock();
+    ++(*_refCount);
+    _pMutex->unlock();
+}
+
 
 ```
 
